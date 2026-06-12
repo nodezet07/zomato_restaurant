@@ -1,0 +1,59 @@
+@import 'tailwindcss';
+
+@theme {
+  --font-sans: 'Plus Jakarta Sans', system-ui, sans-serif;
+  --color-brand: #ff5a00;
+  --color-brand-dark: #d44a00;
+  --color-surface: #f9f9f9;
+  --color-ink: #1a1c1c;
+  --color-muted: #f4f4f5;
+
+  --color-background: #ffffff;
+  --color-foreground: #1a1c1c;
+
+  --color-primary: #ff5a00;
+  --color-primary-foreground: #ffffff;
+
+  --color-secondary: #f4f4f5;
+  --color-secondary-foreground: #18181b;
+
+  --color-muted-foreground: #586062;
+
+  --color-accent: #f4f4f5;
+  --color-accent-foreground: #18181b;
+
+  --color-destructive: #ef4444;
+  --color-destructive-foreground: #ffffff;
+
+  --color-border: #e4e4e7;
+  --color-input: #e4e4e7;
+  --color-ring: #ff5a00;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  background: var(--color-surface);
+  color: var(--color-ink);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Override Tailwind v4's default text-muted and placeholder:text-muted to use muted-foreground */
+.text-muted {
+  color: var(--color-muted-foreground) !important;
+}
+
+.placeholder\:text-muted::placeholder {
+  color: var(--color-muted-foreground) !important;
+}
+
