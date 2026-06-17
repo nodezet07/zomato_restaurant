@@ -29,9 +29,16 @@ export function useRestaurantSocket(restaurantId: string | null | undefined) {
           : 'A customer just placed an order',
       });
       if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
-        new Notification('QuickBite — New order', {
+        const n = new Notification('QuickBite — New order', {
           body: payload.orderNumber ? `#${payload.orderNumber}` : 'Open orders to manage',
+          tag: payload.orderId ?? payload.orderNumber ?? 'new-order',
+          requireInteraction: true,
         });
+        n.onclick = () => {
+          window.focus();
+          window.location.assign('/orders');
+          n.close();
+        };
       }
     };
     const onOrderUpdated = () => {

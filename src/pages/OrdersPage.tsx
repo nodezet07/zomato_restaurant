@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Eye, RefreshCw, XCircle, Search, MoreHorizontal, UtensilsCrossed, Download, Printer } from 'lucide-react';
+import { Eye, RefreshCw, XCircle, Search, MoreHorizontal, UtensilsCrossed, Download, Printer, Phone } from 'lucide-react';
 import {
   useReactTable,
   getCoreRowModel,
@@ -10,10 +10,11 @@ import {
   createColumnHelper,
 } from '@tanstack/react-table';
 import { toast } from 'sonner';
-import { cancelOrderByRestaurant, fetchRestaurantOrders, updateOrderStatus } from '@/services/orders';
+import { cancelOrderByRestaurant, fetchRestaurantOrders, updateOrderStatus, acceptOrder } from '@/services/orders';
 import { useRestaurantStore } from '@/stores/restaurantStore';
 import { PageShell } from '@/components/layout/PageShell';
 import { OrderDetailDialog } from '@/components/orders/OrderDetailDialog';
+import { AcceptOrderDialog } from '@/components/orders/AcceptOrderDialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -97,6 +98,7 @@ export function OrdersPage() {
   const restaurantId = useRestaurantStore((s) => s.restaurantId) ?? '';
   const restaurant = useRestaurantStore((s) => s.restaurant);
   const [detailId, setDetailId] = useState<string | null>(null);
+  const [acceptOrderTarget, setAcceptOrderTarget] = useState<Order | null>(null);
   const [tab, setTab] = useState<OrderTab>('ALL');
   const [globalFilter, setGlobalFilter] = useState('');
 
@@ -116,6 +118,17 @@ export function OrdersPage() {
     },
     onError: (e: Error) =>
       toast.error(`Update failed: ${e.message}`),
+  });
+
+  const acceptMut = useMutation({
+    mutationFn: ({ orderId, waitingMinutes }: { orderId: string; waitingMinutes: number }) =>
+      acceptOrder(orderId, waitingMinutes),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['orders', restaurantId] });
+      toast.success('Order accepted — customer notified');
+      setAcceptOrderTarget(null);
+    },
+    onError: (e: Error) => toast.error(`Accept failed: ${e.message}`),
   });
 
   const cancelMut = useMutation({
@@ -198,14 +211,59 @@ export function OrdersPage() {
           );
         },
       }),
+      columnHelper.accessor('estimatedPreparationTime', {
+        header: 'Wait',
+        cell: (info) => {
+          const mins = info.getValue();
+          const order = info.row.original;
+          if (order.orderStatus === 'PENDING') {
+            return <span className="text-xs text-amber-600 font-semibold">Needs accept</span>;
+          }
+          if (!mins) return <span className="text-xs text-muted">—</span>;
+          return <span className="text-xs font-bold text-ink">{mins} min</span>;
+        },
+      }),
+      columnHelper.display({
+        id: 'rider',
+        header: 'Rider',
+        cell: (info) => {
+          const order = info.row.original;
+          const riderDoc =
+            typeof order.riderId === 'object' && order.riderId ? order.riderId : null;
+          if (!riderDoc) {
+            return <span className="text-xs text-muted">Not assigned</span>;
+          }
+          const riderUser =
+            riderDoc.userId && typeof riderDoc.userId === 'object' ? riderDoc.userId : null;
+          const name = riderUser?.fullName ?? riderDoc.fullName ?? 'Rider';
+          const mobile = riderUser?.mobile ?? riderDoc.mobile ?? null;
+          return (
+            <div className="flex flex-col gap-0.5 min-w-[120px]">
+              <span className="text-xs font-bold text-ink">{name}</span>
+              {mobile ? (
+                <a
+                  href={`tel:${mobile}`}
+                  className="inline-flex items-center gap-1 text-[11px] font-semibold text-brand hover:underline"
+                >
+                  <Phone className="size-3" />
+                  {mobile}
+                </a>
+              ) : (
+                <span className="text-[10px] text-muted">No phone</span>
+              )}
+            </div>
+          );
+        },
+      }),
       columnHelper.display({
         id: 'actions',
         header: () => <div className="text-right pr-4">Actions</div>,
         cell: (info) => {
           const order = info.row.original;
           const next = NEXT_STATUS[order.orderStatus];
+          const isPending = order.orderStatus === 'PENDING';
           const canCancel = !['DELIVERED', 'CANCELLED'].includes(order.orderStatus);
-          const busy = statusMut.isPending || cancelMut.isPending;
+          const busy = statusMut.isPending || cancelMut.isPending || acceptMut.isPending;
 
           return (
             <div className="flex items-center justify-end pr-2">
@@ -233,7 +291,16 @@ export function OrdersPage() {
                     Print KOT
                   </DropdownMenuItem>
 
-                  {next && (
+                  {isPending ? (
+                    <DropdownMenuItem
+                      disabled={busy}
+                      onClick={() => setAcceptOrderTarget(order)}
+                      className="gap-2.5 px-3 py-2 text-xs font-bold text-brand rounded-lg focus:bg-brand/5 focus:text-brand cursor-pointer"
+                    >
+                      <UtensilsCrossed className="size-3.5 text-brand" />
+                      Accept order
+                    </DropdownMenuItem>
+                  ) : next ? (
                     <DropdownMenuItem
                       disabled={busy}
                       onClick={() => statusMut.mutate({ orderId: order._id, orderStatus: next })}
@@ -242,7 +309,7 @@ export function OrdersPage() {
                       <UtensilsCrossed className="size-3.5 text-brand" />
                       Mark {next.replace(/_/g, ' ')}
                     </DropdownMenuItem>
-                  )}
+                  ) : null}
 
                   {canCancel && (
                     <>
@@ -459,6 +526,16 @@ export function OrdersPage() {
         open={Boolean(detailId)}
         onOpenChange={(open) => !open && setDetailId(null)}
         restaurantId={restaurantId}
+      />
+
+      <AcceptOrderDialog
+        order={acceptOrderTarget}
+        open={Boolean(acceptOrderTarget)}
+        onOpenChange={(open) => !open && setAcceptOrderTarget(null)}
+        busy={acceptMut.isPending}
+        onAccept={async (orderId, waitingMinutes) => {
+          await acceptMut.mutateAsync({ orderId, waitingMinutes });
+        }}
       />
     </PageShell>
   );

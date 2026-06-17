@@ -1,12 +1,15 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Bike, MapPin, Loader2 } from 'lucide-react';
+import { Bike, MapPin, Loader2, Navigation } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   assignRiderToOrder,
   fetchAvailableRiders,
   fetchOrderById,
+  fetchOrderRoute,
   trackOrder,
 } from '@/services/orders';
+import { OrderTrackingMap } from '@/components/map/OrderTrackingMap';
+import { useOrderTrackSocket } from '@/hooks/useOrderTrackSocket';
 import {
   Dialog,
   DialogContent,
@@ -15,7 +18,6 @@ import {
 } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Button } from '@/components/ui/button';
 import {
   Select,
   SelectContent,
@@ -23,6 +25,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { useRestaurantStore } from '@/stores/restaurantStore';
 import type { Order } from '@/types/api';
 
 type Props = {
@@ -57,8 +60,10 @@ export function OrderDetailDialog({ orderId, open, onOpenChange, restaurantId }:
     queryKey: ['order-track', orderId],
     queryFn: () => trackOrder(orderId!),
     enabled: Boolean(orderId) && open,
-    refetchInterval: 15_000,
+    staleTime: 60_000,
   });
+
+  useOrderTrackSocket(orderId, open);
 
   const ridersQ = useQuery({
     queryKey: ['available-riders'],
@@ -79,7 +84,15 @@ export function OrderDetailDialog({ orderId, open, onOpenChange, restaurantId }:
 
   const order = orderQ.data;
   const track = trackQ.data;
+  const restaurant = useRestaurantStore((s) => s.restaurant);
   const loc = track?.liveLocation ?? track?.riderLocation;
+
+  const showMap = Boolean(
+    loc ||
+      track?.restaurantLocation ||
+      track?.deliveryLocation ||
+      (restaurant?.latitude != null && restaurant?.longitude != null),
+  );
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -99,9 +112,18 @@ export function OrderDetailDialog({ orderId, open, onOpenChange, restaurantId }:
 
         {order && (
           <OrderDetailBody
+            orderId={orderId!}
             order={order}
             track={track}
             loc={loc}
+            showMap={showMap}
+            restaurantCoord={
+              track?.restaurantLocation ??
+              (restaurant?.latitude != null && restaurant?.longitude != null
+                ? { latitude: restaurant.latitude, longitude: restaurant.longitude }
+                : null)
+            }
+            customerCoord={track?.deliveryLocation ?? null}
             riders={ridersQ.data ?? []}
             ridersLoading={ridersQ.isLoading}
             assignPending={assignMut.isPending}
@@ -114,17 +136,25 @@ export function OrderDetailDialog({ orderId, open, onOpenChange, restaurantId }:
 }
 
 function OrderDetailBody({
+  orderId,
   order,
   track,
   loc,
+  showMap,
+  restaurantCoord,
+  customerCoord,
   riders,
   ridersLoading,
   assignPending,
   onAssign,
 }: {
+  orderId: string;
   order: Order;
   track?: Awaited<ReturnType<typeof trackOrder>>;
-  loc?: { latitude: number; longitude: number };
+  loc?: { latitude: number; longitude: number; heading?: number };
+  showMap: boolean;
+  restaurantCoord?: { latitude: number; longitude: number } | null;
+  customerCoord?: { latitude: number; longitude: number } | null;
   riders: Awaited<ReturnType<typeof fetchAvailableRiders>>;
   ridersLoading: boolean;
   assignPending: boolean;
@@ -137,13 +167,29 @@ function OrderDetailBody({
   const mobile =
     typeof order.customerId === 'object' ? order.customerId?.mobile : undefined;
 
-  const rider =
+  const riderDoc =
     typeof order.riderId === 'object' && order.riderId ? order.riderId : null;
+  const riderUser =
+    riderDoc?.userId && typeof riderDoc.userId === 'object' ? riderDoc.userId : null;
+  const riderName = riderUser?.fullName ?? riderDoc?.fullName ?? 'Rider';
+  const riderMobile = riderUser?.mobile ?? riderDoc?.mobile;
 
-  const canAssign = order.orderStatus === 'READY_FOR_PICKUP' && !rider;
-  const mapUrl = loc
-    ? `https://www.openstreetmap.org/?mlat=${loc.latitude}&mlon=${loc.longitude}#map=16/${loc.latitude}/${loc.longitude}`
-    : null;
+  const canAssign = order.orderStatus === 'READY_FOR_PICKUP' && !riderDoc;
+  const mapStatuses = new Set(['RIDER_ASSIGNED', 'PICKED_UP', 'ON_THE_WAY', 'DELIVERED']);
+  const showLiveMap = Boolean(showMap && (loc || mapStatuses.has(order.orderStatus)));
+
+  const routeQ = useQuery({
+    queryKey: [
+      'order-route',
+      orderId,
+      loc ? Math.round(loc.latitude * 200) : 0,
+      loc ? Math.round(loc.longitude * 200) : 0,
+      order.orderStatus,
+    ],
+    queryFn: () => fetchOrderRoute(orderId),
+    enabled: showLiveMap,
+    staleTime: 45_000,
+  });
 
   return (
     <div className="space-y-5 text-sm">
@@ -205,33 +251,64 @@ function OrderDetailBody({
         </div>
       )}
 
-      {rider && (
+      {riderDoc && (
         <div className="rounded-xl bg-blue-500/5 border border-blue-500/10 p-3">
           <p className="text-[10px] font-black uppercase tracking-widest text-blue-600 flex items-center gap-1">
             <Bike className="size-3" /> Assigned rider
           </p>
-          <p className="font-bold text-ink mt-1">{rider.fullName ?? 'Rider'}</p>
-          {rider.mobile && <p className="text-xs text-muted">{rider.mobile}</p>}
+          <p className="font-bold text-ink mt-1">{riderName}</p>
+          {riderDoc.riderCode ? (
+            <p className="text-[10px] text-muted mt-0.5">ID: {riderDoc.riderCode}</p>
+          ) : null}
+          {riderMobile ? (
+            <a href={`tel:${riderMobile}`} className="inline-flex items-center gap-1 text-xs font-semibold text-brand mt-2 hover:underline">
+              Call {riderMobile}
+            </a>
+          ) : (
+            <p className="text-xs text-muted mt-1">Phone not available</p>
+          )}
         </div>
       )}
 
-      {mapUrl && (
+      {showLiveMap && (
         <div className="space-y-2">
           <p className="text-[10px] font-black uppercase tracking-widest text-muted flex items-center gap-1">
-            <MapPin className="size-3" /> Live location
+            <Navigation className="size-3 text-cyan-500" /> Live delivery map
           </p>
-          <div className="rounded-xl overflow-hidden border border-black/5 h-36 bg-slate-100">
-            <iframe
-              title="Rider map"
-              className="w-full h-full border-0"
-              src={`https://www.openstreetmap.org/export/embed.html?bbox=${loc!.longitude - 0.01}%2C${loc!.latitude - 0.01}%2C${loc!.longitude + 0.01}%2C${loc!.latitude + 0.01}&layer=mapnik&marker=${loc!.latitude}%2C${loc!.longitude}`}
-            />
+          <OrderTrackingMap
+            restaurant={restaurantCoord}
+            customer={customerCoord}
+            rider={loc ?? null}
+            routePath={routeQ.data}
+            height={200}
+          />
+          <div className="flex items-center justify-between">
+            <div className="flex justify-center gap-4 text-[10px] text-muted flex-1">
+            <span className="flex items-center gap-1">
+              <span className="size-2 rounded-full bg-[#ff5a00]" /> Pickup
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="size-2 rounded-full bg-cyan-400" /> Rider
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="size-2 rounded-full bg-[#1a1c1c]" /> Drop
+            </span>
+            </div>
+            {(track as { socketLive?: boolean })?.socketLive ? (
+              <span className="text-[10px] font-bold text-emerald-600">● Live</span>
+            ) : null}
           </div>
-          <Button variant="outline" size="sm" className="w-full text-xs" asChild>
-            <a href={mapUrl} target="_blank" rel="noreferrer">
-              Open full map
-            </a>
-          </Button>
+        </div>
+      )}
+
+      {!showLiveMap && loc && (
+        <div className="space-y-2">
+          <p className="text-[10px] font-black uppercase tracking-widest text-muted flex items-center gap-1">
+            <MapPin className="size-3" /> Rider coordinates
+          </p>
+          <p className="text-xs text-muted">
+            {loc.latitude.toFixed(5)}, {loc.longitude.toFixed(5)}
+          </p>
         </div>
       )}
 

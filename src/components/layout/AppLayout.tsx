@@ -3,6 +3,7 @@ import { SidebarComponent } from './Sidebar';
 import { BottomNav } from './BottomNav';
 import { UserDropdown } from './UserDropdown';
 import { useBootstrapRestaurant } from '@/hooks/useBootstrapRestaurant';
+import { useRestaurantInAppNotifications } from '@/hooks/useRestaurantInAppNotifications';
 import { useRestaurantSocket } from '@/hooks/useRestaurantSocket';
 import { useRestaurantStore } from '@/stores/restaurantStore';
 import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
@@ -11,6 +12,7 @@ export function AppLayout() {
   const { isLoading, error } = useBootstrapRestaurant();
   const restaurant = useRestaurantStore((s) => s.restaurant);
   useRestaurantSocket(restaurant?._id);
+  useRestaurantInAppNotifications(Boolean(restaurant?._id));
 
   return (
     <SidebarProvider>

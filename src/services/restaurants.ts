@@ -1,5 +1,6 @@
 import { DEFAULT_RESTAURANT_ID } from '@/config/env';
 import { apiFetch } from '@/lib/api';
+import type { RestaurantAnalytics } from '@/types/analytics';
 import type { ApiResponse, EarningsSummary, Restaurant, Settlement } from '@/types/api';
 
 export async function getRestaurantById(restaurantId: string) {
@@ -30,10 +31,10 @@ export async function updateRestaurantOpenStatus(restaurantId: string, isOpen: b
 }
 
 export async function getRestaurantAnalytics(restaurantId: string) {
-  const body = await apiFetch<ApiResponse<Record<string, unknown>>>(
+  const body = await apiFetch<ApiResponse<{ analytics: RestaurantAnalytics }>>(
     `/restaurants/analytics/${restaurantId}`,
   );
-  return body.data;
+  return body.data.analytics;
 }
 
 export async function getRestaurantEarnings(restaurantId: string) {

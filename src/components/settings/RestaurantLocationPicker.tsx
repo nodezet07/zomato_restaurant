@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { MapPin, LocateFixed, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { GoogleRestaurantMapPicker } from '@/components/map/GoogleRestaurantMapPicker';
 import { reverseGeocode } from '@/services/geocode';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -16,8 +17,8 @@ type Props = {
   onAddressChange: (patch: Partial<RestaurantAddress>) => void;
 };
 
-const DEFAULT_LAT = 28.6139;
-const DEFAULT_LNG = 77.209;
+const DEFAULT_LAT = 19.076;
+const DEFAULT_LNG = 72.8777;
 
 export function RestaurantLocationPicker({
   latitude,
@@ -27,7 +28,6 @@ export function RestaurantLocationPicker({
   onLongitudeChange,
   onAddressChange,
 }: Props) {
-  const mapRef = useRef<HTMLDivElement>(null);
   const geocodeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const skipGeocodeRef = useRef(true);
   const [geocoding, setGeocoding] = useState(false);
@@ -58,6 +58,7 @@ export function RestaurantLocationPicker({
 
   const applyCoords = useCallback(
     (newLat: number, newLng: number, runGeocode = true) => {
+      if (!Number.isFinite(newLat) || !Number.isFinite(newLng)) return;
       if (runGeocode) skipGeocodeRef.current = true;
       onLatitudeChange(Number(newLat.toFixed(6)));
       onLongitudeChange(Number(newLng.toFixed(6)));
@@ -66,41 +67,20 @@ export function RestaurantLocationPicker({
     [onLatitudeChange, onLongitudeChange, fillAddressFromCoords],
   );
 
-  // Auto-fill when opening with coordinates but no address text yet
   useEffect(() => {
     const needsFill = !address.street && !address.city && !address.pincode;
-    if (needsFill) void fillAddressFromCoords(lat, lng);
+    if (needsFill && Number.isFinite(lat) && Number.isFinite(lng)) {
+      void fillAddressFromCoords(lat, lng);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- run once on mount
   }, []);
 
-  const updateFromMapClick = useCallback(
-    (e: MouseEvent) => {
-      const el = mapRef.current;
-      if (!el) return;
-      const rect = el.getBoundingClientRect();
-      const x = (e.clientX - rect.left) / rect.width;
-      const y = (e.clientY - rect.top) / rect.height;
-      const span = 0.02;
-      const newLng = lng + (x - 0.5) * span * 2;
-      const newLat = lat - (y - 0.5) * span * 2;
-      applyCoords(newLat, newLng, true);
-    },
-    [lat, lng, applyCoords],
-  );
-
-  useEffect(() => {
-    const el = mapRef.current;
-    if (!el) return;
-    el.addEventListener('click', updateFromMapClick);
-    return () => el.removeEventListener('click', updateFromMapClick);
-  }, [updateFromMapClick]);
-
-  // Debounced geocode when user edits lat/lng manually
   useEffect(() => {
     if (skipGeocodeRef.current) {
       skipGeocodeRef.current = false;
       return;
     }
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
     if (geocodeTimer.current) clearTimeout(geocodeTimer.current);
     geocodeTimer.current = setTimeout(() => {
       void fillAddressFromCoords(lat, lng);
@@ -125,34 +105,24 @@ export function RestaurantLocationPicker({
     );
   }
 
-  const bbox = `${lng - 0.012},${lat - 0.008},${lng + 0.012},${lat + 0.008}`;
-  const embedSrc = `https://www.openstreetmap.org/export/embed.html?bbox=${encodeURIComponent(bbox)}&layer=mapnik&marker=${lat}%2C${lng}`;
-
   return (
     <div className="space-y-4">
-      <div className="relative rounded-xl overflow-hidden border border-black/10 h-52 bg-slate-100">
-        <iframe
-          title="Restaurant location"
-          className="absolute inset-0 w-full h-full border-0 pointer-events-none"
-          src={embedSrc}
+      <div className="relative">
+        <GoogleRestaurantMapPicker
+          latitude={lat}
+          longitude={lng}
+          onPick={(newLat, newLng) => applyCoords(newLat, newLng, true)}
         />
-        <div
-          ref={mapRef}
-          className="absolute inset-0 cursor-crosshair z-10"
-          title="Click to set pin location"
-        />
-        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-full z-20 pointer-events-none">
-          <MapPin className="size-8 text-rose-600 drop-shadow-md" fill="currentColor" />
-        </div>
         {geocoding && (
-          <div className="absolute inset-0 z-30 flex items-center justify-center bg-white/60 backdrop-blur-[1px]">
+          <div className="absolute inset-0 z-30 flex items-center justify-center bg-white/60 backdrop-blur-[1px] rounded-xl">
             <Loader2 className="size-6 animate-spin text-brand" />
           </div>
         )}
       </div>
 
-      <p className="text-[11px] text-muted font-medium">
-        Click the map or use GPS — street, city, state and pincode auto-fill from the pin location.
+      <p className="text-[11px] text-muted font-medium flex items-center gap-1">
+        <MapPin className="size-3 text-rose-500" />
+        Click map or drag pin — address auto-fills from Google Geocoding.
       </p>
 
       <div className="flex flex-wrap gap-2">
@@ -169,11 +139,11 @@ export function RestaurantLocationPicker({
         </Button>
         <Button type="button" variant="outline" size="sm" className="text-xs" asChild>
           <a
-            href={`https://www.openstreetmap.org/?mlat=${lat}&mlon=${lng}#map=17/${lat}/${lng}`}
+            href={`https://www.google.com/maps?q=${lat},${lng}`}
             target="_blank"
             rel="noreferrer"
           >
-            Open in maps
+            Open in Google Maps
           </a>
         </Button>
       </div>

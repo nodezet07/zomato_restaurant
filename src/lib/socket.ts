@@ -5,12 +5,18 @@ import { useAuthStore } from '@/stores/authStore';
 export const CLIENT_EVENTS = {
   JOIN_RESTAURANT: 'join_restaurant',
   LEAVE_RESTAURANT: 'leave_restaurant',
+  JOIN_ORDER: 'join_order',
+  LEAVE_ORDER: 'leave_order',
 } as const;
 
 export const SERVER_EVENTS = {
   NEW_ORDER: 'new_order',
   ORDER_UPDATED: 'order_updated',
   ORDER_CANCELLED: 'order_cancelled',
+  RIDER_LOCATION_UPDATE: 'rider_location_update',
+  RIDER_ASSIGNED: 'rider_assigned',
+  ORDER_PICKED_UP: 'order_picked_up',
+  ORDER_DELIVERED: 'order_delivered',
 } as const;
 
 let socket: Socket | null = null;
@@ -49,6 +55,15 @@ export function joinRestaurantRoom(restaurantId: string) {
 
 export function leaveRestaurantRoom(restaurantId: string) {
   socket?.emit(CLIENT_EVENTS.LEAVE_RESTAURANT, { restaurantId });
+}
+
+export function joinOrderRoom(orderId: string) {
+  const s = socket ?? connectRestaurantSocket();
+  s.emit(CLIENT_EVENTS.JOIN_ORDER, { orderId });
+}
+
+export function leaveOrderRoom(orderId: string) {
+  socket?.emit(CLIENT_EVENTS.LEAVE_ORDER, { orderId });
 }
 
 export function disconnectRestaurantSocket() {

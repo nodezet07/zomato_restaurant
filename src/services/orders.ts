@@ -25,23 +25,41 @@ export async function fetchOrderById(orderId: string) {
 export async function updateOrderStatus(
   orderId: string,
   status: string,
-  cancellationReason?: string,
+  options?: { cancellationReason?: string; estimatedPreparationTime?: number },
 ) {
   const body = await apiFetch<ApiResponse<{ order: Order }>>(`/orders/status/${orderId}`, {
     method: 'PATCH',
-    body: JSON.stringify({ status, cancellationReason }),
+    body: JSON.stringify({
+      status,
+      cancellationReason: options?.cancellationReason,
+      estimatedPreparationTime: options?.estimatedPreparationTime,
+    }),
   });
   return body.data.order;
 }
 
+/** Restaurant accepts a pending order with a customer-facing wait time */
+export async function acceptOrder(orderId: string, waitingMinutes: number) {
+  return updateOrderStatus(orderId, 'CONFIRMED', {
+    estimatedPreparationTime: waitingMinutes,
+  });
+}
+
 /** Restaurant owner cancel — uses status API, not customer /orders/cancel */
 export async function cancelOrderByRestaurant(orderId: string, reason?: string) {
-  return updateOrderStatus(orderId, 'CANCELLED', reason ?? 'Cancelled by restaurant');
+  return updateOrderStatus(orderId, 'CANCELLED', { cancellationReason: reason ?? 'Cancelled by restaurant' });
 }
 
 export async function trackOrder(orderId: string) {
-  const body = await apiFetch<ApiResponse<OrderTrackPayload>>(`/orders/track/${orderId}`);
-  return body.data;
+  const body = await apiFetch<ApiResponse<{ tracking: OrderTrackPayload }>>(`/orders/track/${orderId}`);
+  return body.data.tracking;
+}
+
+export async function fetchOrderRoute(orderId: string) {
+  const body = await apiFetch<ApiResponse<{ path: Array<{ latitude: number; longitude: number }> }>>(
+    `/orders/track/${orderId}/route`,
+  );
+  return body.data.path ?? [];
 }
 
 export async function fetchAvailableRiders() {

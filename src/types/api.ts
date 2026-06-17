@@ -89,9 +89,19 @@ export type Order = {
   grandTotal: number;
   orderItems: OrderItem[];
   customerId?: { fullName?: string; mobile?: string };
-  riderId?: { fullName?: string; mobile?: string } | string;
+  riderId?:
+    | {
+        _id?: string;
+        riderCode?: string;
+        fullName?: string;
+        mobile?: string;
+        userId?: { fullName?: string; mobile?: string };
+      }
+    | string;
   createdAt?: string;
   deliveryInstructions?: string;
+  estimatedPreparationTime?: number;
+  estimatedDeliveryTime?: string;
   deliveryAddress?: {
     addressLine?: string;
     city?: string;
@@ -148,10 +158,14 @@ export type OrderTrackPayload = {
   orderNumber?: string;
   orderStatus: string;
   paymentStatus?: string;
-  riderLocation?: { latitude: number; longitude: number };
-  liveLocation?: { latitude: number; longitude: number };
+  riderLocation?: { latitude: number; longitude: number; heading?: number };
+  liveLocation?: { latitude: number; longitude: number; heading?: number; speed?: number };
+  restaurantLocation?: { latitude: number; longitude: number };
+  deliveryLocation?: { latitude: number; longitude: number };
+  etaMinutes?: number | null;
   timelineLogs?: Array<{ status: string; timestamp?: string }>;
   deliveredAt?: string;
+  socketLive?: boolean;
 };
 
 export type MenuComboItemRef = {
