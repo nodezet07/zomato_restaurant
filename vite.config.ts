@@ -13,5 +13,9 @@ export default defineConfig({
   server: {
     port: 5174,
     host: true,
+    allowedHosts: ['zomato-restaurant-ychb.onrender.com']
   },
+  preview: {
+    allowedHosts: ['zomato-restaurant-ychb.onrender.com']
+  }
 });
