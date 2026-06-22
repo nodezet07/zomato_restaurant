@@ -90,11 +90,3 @@ export async function alertOrderUpdate(input: {
     };
   }
 }
-
-/**
- * Optional FCM remote push — enable only after adding google-services.json + @capacitor/push-notifications.
- */
-export async function registerRemotePushTokenIfAvailable(): Promise<void> {
-  if (!import.meta.env.VITE_ENABLE_FCM_PUSH) return;
-  // Requires: npm install @capacitor/push-notifications + android/app/google-services.json
-}

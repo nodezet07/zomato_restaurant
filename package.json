@@ -5,10 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build --mode production",
+    "build": "tsc -b && vite build",
     "preview": "vite preview",
     "start": "vite preview --port $PORT --host",
-    "lint": "tsc --noEmit",
     "lint": "tsc --noEmit",
     "cap:sync": "npx cap sync",
     "cap:open:android": "npx cap open android",
@@ -37,13 +36,19 @@
     "tailwind-merge": "^3.6.0",
     "zustand": "^5.0.14"
   },
+  "engines": {
+    "node": ">=20"
+  },
+  "overrides": {
+    "typescript": "5.9.3"
+  },
   "devDependencies": {
     "@tailwindcss/vite": "^4.1.17",
     "@types/react": "^19.2.2",
     "@types/react-dom": "^19.2.2",
     "@vitejs/plugin-react": "^5.1.1",
     "tailwindcss": "^4.1.17",
-    "typescript": "~5.9.3",
+    "typescript": "5.9.3",
     "vite": "^8.0.12"
   }
 }
