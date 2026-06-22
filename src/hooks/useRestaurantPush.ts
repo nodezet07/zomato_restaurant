@@ -5,7 +5,6 @@ import {
   alertOrderUpdate,
   isPushEnabled,
   registerForPushNotifications,
-  registerRemotePushTokenIfAvailable,
 } from '@/lib/pushNotifications';
 
 /** Setup push-style alerts (local notifications on Android/iOS, browser on web). */
@@ -14,7 +13,6 @@ export function useRestaurantPush(enabled: boolean) {
     if (!enabled) return;
 
     void registerForPushNotifications();
-    void registerRemotePushTokenIfAvailable();
 
     if (!Capacitor.isNativePlatform()) return;
 
