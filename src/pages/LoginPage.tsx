@@ -3,20 +3,13 @@ import type { FormEvent, KeyboardEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useMutation } from '@tanstack/react-query';
 import { Award, Loader2, Mail, ShieldCheck } from 'lucide-react';
-import { AppReloadButton } from '@/components/layout/AppReloadButton';
 import { sendRestaurantEmailOtp, verifyRestaurantEmailOtp } from '@/services/auth';
 import {
   discoverWorkingNativeHost,
   getEnvInfo,
-  getNativeHostCandidates,
 } from '@/config/env';
 import {
-  clearLoginLogs,
-  getLoginLogs,
   loginLog,
-  pingBackendHealth,
-  subscribeLoginLogs,
-  type LoginLogEntry,
 } from '@/lib/loginLogger';
 import { useAuthStore } from '@/stores/authStore';
 import { useRestaurantStore } from '@/stores/restaurantStore';
@@ -30,104 +23,6 @@ function assertRestaurantOwner(user: AuthUser) {
   }
 }
 
-function LoginDebugPanel({
-  envInfo,
-  healthStatus,
-  onPing,
-  pinging,
-}: {
-  envInfo: ReturnType<typeof getEnvInfo>;
-  healthStatus: string;
-  onPing: () => void;
-  pinging: boolean;
-}) {
-  const [open, setOpen] = useState(true);
-  const [logs, setLogs] = useState<LoginLogEntry[]>(getLoginLogs());
-
-  useEffect(() => subscribeLoginLogs(() => setLogs(getLoginLogs())), []);
-
-  return (
-    <div className="w-full rounded-xl border border-slate-200 bg-slate-50 text-left">
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-center justify-between px-3 py-2 text-[11px] font-bold uppercase tracking-wide text-slate-500"
-      >
-        Debug logs
-        <span>{open ? '▾' : '▸'}</span>
-      </button>
-
-      {open && (
-        <div className="space-y-2 border-t border-slate-200 px-3 py-2">
-          <div className="space-y-0.5 text-[10px] leading-relaxed text-slate-600">
-            <p>
-              <span className="font-semibold">Try hosts:</span>{' '}
-              {envInfo.hostCandidates?.join(' → ') || '—'}
-            </p>
-            <p>
-              <span className="font-semibold">API:</span> {envInfo.apiUrl}
-            </p>
-            <p>
-              <span className="font-semibold">Socket:</span> {envInfo.socketUrl}
-            </p>
-            <p>
-              <span className="font-semibold">Health:</span> {healthStatus}
-            </p>
-          </div>
-
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={onPing}
-              disabled={pinging}
-              className="rounded-lg bg-slate-800 px-2 py-1 text-[10px] font-semibold text-white disabled:opacity-50"
-            >
-              {pinging ? 'Pinging…' : 'Ping backend'}
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                clearLoginLogs();
-                loginLog('info', 'Logs cleared');
-              }}
-              className="rounded-lg border border-slate-300 px-2 py-1 text-[10px] font-semibold text-slate-600"
-            >
-              Clear
-            </button>
-          </div>
-
-          <div className="max-h-32 overflow-y-auto rounded-lg bg-slate-900 p-2 font-mono text-[9px] leading-relaxed text-slate-200">
-            {logs.length === 0 ? (
-              <p className="text-slate-400">No logs yet…</p>
-            ) : (
-              logs.map((log) => (
-                <div key={log.id} className="mb-1.5 border-b border-slate-700 pb-1 last:border-0">
-                  <span
-                    className={
-                      log.level === 'error'
-                        ? 'text-red-400'
-                        : log.level === 'success'
-                          ? 'text-emerald-400'
-                          : log.level === 'warn'
-                            ? 'text-amber-400'
-                            : 'text-sky-300'
-                    }
-                  >
-                    [{log.time}] {log.message}
-                  </span>
-                  {log.detail ? (
-                    <pre className="mt-0.5 whitespace-pre-wrap break-all text-slate-400">{log.detail}</pre>
-                  ) : null}
-                </div>
-              ))
-            )}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
 export function LoginPage() {
   const navigate = useNavigate();
   const setAuth = useAuthStore((s) => s.setAuth);
@@ -139,44 +34,16 @@ export function LoginPage() {
   }, [isAuthenticated, navigate]);
 
   const [step, setStep] = useState<Step>('email');
-  const [email, setEmail] = useState('shaikhanzal94@gmail.com');
+  const [email, setEmail] = useState('');
   const [otp, setOtp] = useState<string[]>(Array(6).fill(''));
   const [errorMsg, setErrorMsg] = useState('');
   const [resendTimer, setResendTimer] = useState(0);
-  const [devOtpHint, setDevOtpHint] = useState<string | null>(null);
-  const [healthStatus, setHealthStatus] = useState('Not checked');
-  const [pinging, setPinging] = useState(false);
-  const [envInfo, setEnvInfo] = useState(getEnvInfo());
+  const [envInfo] = useState(getEnvInfo());
 
   const otpInputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
   useEffect(() => {
     loginLog('info', 'Login page mounted', envInfo);
-  }, []);
-
-  const runHealthPing = async () => {
-    setPinging(true);
-    setHealthStatus('Checking…');
-    loginLog('info', 'Discovering backend host', { candidates: getNativeHostCandidates() });
-
-    const host = await discoverWorkingNativeHost();
-    setEnvInfo(getEnvInfo());
-
-    if (host) {
-      const result = await pingBackendHealth(getEnvInfo().apiUrl);
-      setHealthStatus(`OK via ${host} (${result.status}) — ${result.ms}ms`);
-      loginLog('success', `Using backend host: ${host}`);
-    } else {
-      setHealthStatus(
-        `Failed — tried: ${getNativeHostCandidates().join(', ')}. Check firewall & backend.`,
-      );
-      loginLog('error', 'No reachable backend host', getNativeHostCandidates());
-    }
-    setPinging(false);
-  };
-
-  useEffect(() => {
-    void runHealthPing();
   }, []);
 
   useEffect(() => {
@@ -200,10 +67,9 @@ export function LoginPage() {
     mutationFn: async () => {
       loginLog('info', 'Discovering backend before OTP…');
       const host = await discoverWorkingNativeHost();
-      setEnvInfo(getEnvInfo());
       if (!host) {
         throw new Error(
-          'Cannot reach backend. Tap Ping backend. PC: npm run dev in clone-backend. Phone on same Wi‑Fi.',
+          'Cannot reach backend. Ensure clone-backend is running and your phone is on same Wi-Fi.',
         );
       }
       loginLog('info', 'Sending restaurant email OTP', {
@@ -212,17 +78,16 @@ export function LoginPage() {
       });
       return sendRestaurantEmailOtp(email.trim().toLowerCase());
     },
-    onSuccess: (data) => {
-      loginLog('success', 'Send OTP UI success', { hasDevOtp: Boolean(data.devOtp) });
+    onSuccess: () => {
+      loginLog('success', 'Send OTP UI success');
       setStep('otp');
       setResendTimer(60);
       setErrorMsg('');
-      if (data.devOtp) setDevOtpHint(data.devOtp);
       setTimeout(() => otpInputRefs.current[0]?.focus(), 120);
     },
     onError: (err: Error) => {
       loginLog('error', 'Send OTP UI error', err.message);
-      setErrorMsg(err.message || 'Failed to fetch — check Debug logs & Ping backend');
+      setErrorMsg(err.message || 'Failed to send OTP');
     },
   });
 
@@ -242,7 +107,6 @@ export function LoginPage() {
   const handleEmailSubmit = (e: FormEvent) => {
     e.preventDefault();
     setErrorMsg('');
-    setDevOtpHint(null);
     if (!email.trim().includes('@')) {
       loginLog('warn', 'Invalid email format', { email });
       setErrorMsg('Please enter a valid Gmail / email address');
@@ -317,19 +181,6 @@ export function LoginPage() {
           {errorMsg}
         </div>
       )}
-
-      {devOtpHint && (
-        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-center text-[12px] font-semibold text-amber-800">
-          Dev OTP (check Gmail or use): <span className="font-mono">{devOtpHint}</span>
-        </div>
-      )}
-
-      <LoginDebugPanel
-        envInfo={envInfo}
-        healthStatus={healthStatus}
-        onPing={runHealthPing}
-        pinging={pinging}
-      />
 
       {step === 'email' && (
         <form onSubmit={handleEmailSubmit} className="flex flex-col gap-4">
@@ -425,7 +276,6 @@ export function LoginPage() {
               setStep('email');
               setOtp(Array(6).fill(''));
               setErrorMsg('');
-              setDevOtpHint(null);
             }}
             className="text-center text-[12.5px] text-slate-400 underline underline-offset-2 transition-colors hover:text-brand"
           >
@@ -447,9 +297,6 @@ export function LoginPage() {
 
   return (
     <div className="fixed inset-0 flex min-h-[100dvh] flex-col overflow-hidden md:flex-row">
-      <div className="absolute right-3 top-3 z-50 sm:right-4 sm:top-4">
-        <AppReloadButton />
-      </div>
       {/* Mobile hero */}
       <div
         className="relative max-h-[38vh] min-h-[200px] shrink-0 overflow-hidden md:hidden"
