@@ -65,16 +65,19 @@ export function LoginPage() {
 
   const sendOtp = useMutation({
     mutationFn: async () => {
-      loginLog('info', 'Discovering backend before OTP…');
-      const host = await discoverWorkingNativeHost();
-      if (!host) {
-        throw new Error(
-          'Cannot reach backend. Ensure clone-backend is running and your phone is on same Wi-Fi.',
-        );
+      const latestEnv = getEnvInfo();
+      if (latestEnv.isNative) {
+        loginLog('info', 'Discovering backend before OTP…');
+        const host = await discoverWorkingNativeHost();
+        if (!host) {
+          throw new Error(
+            'Cannot reach backend. Ensure clone-backend is running and your phone is on same Wi-Fi.',
+          );
+        }
       }
       loginLog('info', 'Sending restaurant email OTP', {
         email: email.trim().toLowerCase(),
-        api: getEnvInfo().apiUrl,
+        api: latestEnv.apiUrl,
       });
       return sendRestaurantEmailOtp(email.trim().toLowerCase());
     },
