@@ -128,8 +128,9 @@ function shouldUseProductionBackend(): boolean {
 }
 
 /** Try each LAN host until /health responds — local APK only */
-export async function discoverWorkingNativeHost(): Promise<string | null> {
-  if (!isNativeApp() || shouldUseProductionBackend()) return null;
+export async function discoverWorkingNativeHost(force = false): Promise<string | null> {
+  if (!isNativeApp()) return null;
+  if (!force && shouldUseProductionBackend()) return null;
 
   for (const host of getNativeHostCandidates()) {
     const url = `http://${host}:${API_PORT}/api/v1/health`;

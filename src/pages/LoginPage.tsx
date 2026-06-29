@@ -115,7 +115,7 @@ export function LoginPage() {
       if (latestEnv.isNative && latestEnv.useProductionBackend) {
         const renderOk = await discoverProductionBackend();
         if (!renderOk) {
-          const host = await discoverWorkingNativeHost();
+          const host = await discoverWorkingNativeHost(true);
           if (!host) {
             throw new Error(
               `Cannot reach ${BACKEND_URLS.production.base}. Wait ~30s if the server was sleeping, or enable local backend and ensure phone + PC are on same Wi‑Fi.`,
