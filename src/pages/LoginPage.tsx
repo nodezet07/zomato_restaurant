@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import type { FormEvent, KeyboardEvent } from 'react';
+import type { FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useMutation } from '@tanstack/react-query';
 import { Award, Loader2, Mail, ShieldCheck } from 'lucide-react';
@@ -39,13 +39,13 @@ export function LoginPage() {
 
   const [step, setStep] = useState<Step>('email');
   const [email, setEmail] = useState('');
-  const [otp, setOtp] = useState<string[]>(Array(6).fill(''));
+  const [otpCode, setOtpCode] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
   const [resendTimer, setResendTimer] = useState(0);
   const [envInfo, setEnvInfo] = useState(getEnvInfo());
   const [backendStatus, setBackendStatus] = useState<'checking' | 'ok' | 'fail'>('checking');
 
-  const otpInputRefs = useRef<(HTMLInputElement | null)[]>([]);
+  const otpInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     loginLog('info', 'Login page mounted', envInfo);
@@ -147,7 +147,8 @@ export function LoginPage() {
       setStep('otp');
       setResendTimer(60);
       setErrorMsg('');
-      setTimeout(() => otpInputRefs.current[0]?.focus(), 120);
+      setOtpCode('');
+      setTimeout(() => otpInputRef.current?.focus(), 120);
     },
     onError: (err: Error) => {
       loginLog('error', 'Send OTP UI error', err.message);
@@ -156,13 +157,13 @@ export function LoginPage() {
   });
 
   const verifyOtp = useMutation({
-    mutationFn: () => verifyRestaurantEmailOtp(email.trim().toLowerCase(), otp.join('')),
+    mutationFn: () => verifyRestaurantEmailOtp(email.trim().toLowerCase(), otpCode),
     onSuccess: finishAuth,
     onError: (err: Error) => {
       loginLog('error', 'Verify OTP UI error', err.message);
       setErrorMsg(err.message);
-      setOtp(Array(6).fill(''));
-      setTimeout(() => otpInputRefs.current[0]?.focus(), 80);
+      setOtpCode('');
+      setTimeout(() => otpInputRef.current?.focus(), 80);
     },
   });
 
@@ -180,35 +181,10 @@ export function LoginPage() {
     sendOtp.mutate();
   };
 
-  const handleOtpChange = (value: string, index: number) => {
-    const clean = value.replace(/\D/g, '');
-    if (!clean && value.length > 0) return;
-    const next = [...otp];
-    if (clean.length > 1) {
-      const paste = clean.slice(0, 6 - index);
-      for (let i = 0; i < paste.length; i++) next[index + i] = paste[i];
-      setOtp(next);
-      otpInputRefs.current[Math.min(index + paste.length, 5)]?.focus();
-      return;
-    }
-    next[index] = clean;
-    setOtp(next);
-    if (clean && index < 5) otpInputRefs.current[index + 1]?.focus();
-  };
-
-  const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>, index: number) => {
-    if (e.key === 'Backspace' && !otp[index] && index > 0) {
-      const next = [...otp];
-      next[index - 1] = '';
-      setOtp(next);
-      otpInputRefs.current[index - 1]?.focus();
-    }
-  };
-
   const handleOtpSubmit = (e: FormEvent) => {
     e.preventDefault();
     setErrorMsg('');
-    if (otp.join('').length !== 6) {
+    if (otpCode.length !== 6) {
       setErrorMsg('Please enter the 6-digit OTP');
       return;
     }
@@ -218,7 +194,7 @@ export function LoginPage() {
   const handleResend = () => {
     if (resendTimer > 0) return;
     setErrorMsg('');
-    setOtp(Array(6).fill(''));
+    setOtpCode('');
     sendOtp.mutate();
   };
 
@@ -304,39 +280,28 @@ export function LoginPage() {
         <form
           onSubmit={handleOtpSubmit}
           className="flex flex-col gap-4"
-          onPaste={(e) => {
-            const pasted = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6);
-            if (!pasted) return;
-            e.preventDefault();
-            const next = Array(6).fill('');
-            for (let i = 0; i < pasted.length; i++) next[i] = pasted[i];
-            setOtp(next);
-            otpInputRefs.current[Math.min(pasted.length, 5)]?.focus();
-          }}
         >
-          <div className="flex justify-center gap-1.5 sm:gap-2">
-            {otp.map((digit, i) => (
-              <input
-                key={i}
-                type="text"
-                inputMode="numeric"
-                maxLength={1}
-                autoComplete={i === 0 ? 'one-time-code' : 'off'}
-                ref={(el) => {
-                  otpInputRefs.current[i] = el;
-                }}
-                value={digit}
-                onChange={(e) => handleOtpChange(e.target.value, i)}
-                onKeyDown={(e) => handleKeyDown(e, i)}
-                onFocus={(e) => e.currentTarget.select()}
-                className={[
-                  'h-[50px] w-[42px] rounded-xl border-[1.5px] bg-white text-center text-xl font-bold text-slate-800 outline-none transition-all sm:h-[52px] sm:w-[46px] sm:text-[22px]',
-                  digit
-                    ? 'border-brand ring-2 ring-orange-400/20'
-                    : 'border-slate-200 focus:border-brand focus:ring-2 focus:ring-orange-400/20',
-                ].join(' ')}
-              />
-            ))}
+          <div>
+            <label className="mb-1.5 block text-center text-[11px] font-bold uppercase tracking-widest text-slate-400">
+              6-digit OTP
+            </label>
+            <input
+              ref={otpInputRef}
+              type="text"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              maxLength={6}
+              value={otpCode}
+              onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+              onPaste={(e) => {
+                const pasted = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6);
+                if (!pasted) return;
+                e.preventDefault();
+                setOtpCode(pasted);
+              }}
+              className="h-12 w-full rounded-xl border border-slate-200 bg-white px-4 text-center text-xl font-bold tracking-[0.45em] text-slate-800 outline-none transition-all placeholder:text-slate-400 focus:border-brand focus:ring-2 focus:ring-orange-500/20"
+              placeholder="------"
+            />
           </div>
 
           <div className="flex flex-wrap items-center justify-center gap-1.5 text-center text-[12.5px]">
@@ -353,7 +318,7 @@ export function LoginPage() {
 
           <button
             type="submit"
-            disabled={busy || otp.join('').length < 6}
+            disabled={busy || otpCode.length < 6}
             className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-brand text-[15px] font-bold text-white shadow-md shadow-orange-400/25 transition-all hover:bg-brand-dark active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
           >
             {verifyOtp.isPending ? (
@@ -369,7 +334,7 @@ export function LoginPage() {
             type="button"
             onClick={() => {
               setStep('email');
-              setOtp(Array(6).fill(''));
+              setOtpCode('');
               setErrorMsg('');
             }}
             className="text-center text-[12.5px] text-slate-400 underline underline-offset-2 transition-colors hover:text-brand"

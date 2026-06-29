@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { clearPersistedNotifications } from '@/lib/notificationCache';
 import type { AuthUser } from '@/types/api';
 
 type AuthState = {
@@ -23,7 +24,11 @@ export const useAuthStore = create<AuthState>()(
         set({ user, accessToken, refreshToken }),
       setTokens: (accessToken, refreshToken) => set({ accessToken, refreshToken }),
       setUser: (user) => set({ user }),
-      logout: () => set({ accessToken: null, refreshToken: null, user: null }),
+      logout: () => {
+        const userId = get().user?._id;
+        if (userId) clearPersistedNotifications(userId);
+        set({ accessToken: null, refreshToken: null, user: null });
+      },
       isAuthenticated: () => Boolean(get().accessToken),
     }),
     {

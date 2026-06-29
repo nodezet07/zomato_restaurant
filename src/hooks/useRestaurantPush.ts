@@ -18,15 +18,6 @@ export function useRestaurantPush(enabled: boolean) {
     }
 
     void registerForPushNotifications();
-
-    const onNotificationsChanged = () => {
-      window.dispatchEvent(new Event('qbite:invalidate-notifications'));
-    };
-    window.addEventListener('qbite:notifications-changed', onNotificationsChanged);
-
-    return () => {
-      window.removeEventListener('qbite:notifications-changed', onNotificationsChanged);
-    };
   }, [enabled]);
 }
 

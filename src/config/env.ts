@@ -119,6 +119,14 @@ function isRemoteApiUrl(url: string | undefined): boolean {
 
 /** Production Render unless explicitly opted into local LAN backend */
 function shouldUseProductionBackend(): boolean {
+  if (
+    typeof window !== 'undefined' &&
+    !isNativeApp() &&
+    !import.meta.env.PROD &&
+    (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+  ) {
+    return false;
+  }
   if (isLocalBackendOverrideEnabled()) return false;
   if (import.meta.env.VITE_USE_LOCAL_BACKEND === 'true') return false;
   if (import.meta.env.VITE_USE_PRODUCTION_BACKEND === 'true') return true;

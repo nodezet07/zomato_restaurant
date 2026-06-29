@@ -9,6 +9,7 @@ import {
 } from '@/lib/socket';
 import { alertOrderUpdate } from '@/lib/pushNotifications';
 import type { NewOrderSocketPayload } from '@/types/api';
+import type { PortalNotification } from '@/services/notifications';
 
 export function useRestaurantSocket(restaurantId: string | null | undefined) {
   const qc = useQueryClient();
@@ -33,8 +34,21 @@ export function useRestaurantSocket(restaurantId: string | null | undefined) {
       const rid = restaurantIdRef.current;
       if (!rid) return;
       qc.invalidateQueries({ queryKey: ['orders', rid] });
-      void qc.invalidateQueries({ queryKey: ['notifications', 'list'] });
-      void qc.invalidateQueries({ queryKey: ['notifications', 'unread-count'] });
+      const syntheticNotification: PortalNotification = {
+        _id: `order-${payload.orderId}-${Date.now()}`,
+        notificationType: 'ORDER',
+        title: 'New order',
+        message: payload.orderNumber
+          ? `New order ${payload.orderNumber} - please confirm and prepare.`
+          : 'A new order has been placed.',
+        isRead: false,
+        sentAt: new Date().toISOString(),
+        redirectType: 'ORDER',
+        redirectId: payload.orderId,
+      };
+      window.dispatchEvent(new CustomEvent('qbite:notifications-changed', {
+        detail: { notification: syntheticNotification },
+      }));
       window.dispatchEvent(new Event('qbite:invalidate-notifications'));
       toast.success('New order received!', {
         description: payload.orderNumber

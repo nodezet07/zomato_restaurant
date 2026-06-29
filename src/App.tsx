@@ -1,20 +1,20 @@
-import type { ReactNode } from 'react';
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
-import { Toaster } from 'sonner';
-import { ProtectedRoute } from '@/components/ProtectedRoute';
-import { AppLayout } from '@/components/layout/AppLayout';
-import { LoginPage } from '@/pages/LoginPage';
-import { DashboardPage } from '@/pages/DashboardPage';
-import { OrdersPage } from '@/pages/OrdersPage';
-import { MenuPage } from '@/pages/MenuPage';
-import { OffersPage } from '@/pages/OffersPage';
-import { SettingsPage } from '@/pages/SettingsPage';
-import { ReviewsPage } from '@/pages/ReviewsPage';
-import { FinancePage } from '@/pages/FinancePage';
-import { AnalyticsPage } from '@/pages/AnalyticsPage';
-import { SupportPage } from '@/pages/SupportPage';
-import { NotificationsPage } from '@/pages/NotificationsPage';
-import { useAuthStore } from '@/stores/authStore';
+import type { ReactNode } from "react";
+import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import { Toaster } from "sonner";
+import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { AppLayout } from "@/components/layout/AppLayout";
+import { LoginPage } from "@/pages/LoginPage";
+import { DashboardPage } from "@/pages/DashboardPage";
+import { OrdersPage } from "@/pages/OrdersPage";
+import { MenuPage } from "@/pages/MenuPage";
+import { OffersPage } from "@/pages/OffersPage";
+import { SettingsPage } from "@/pages/SettingsPage";
+import { ReviewsPage } from "@/pages/ReviewsPage";
+import { FinancePage } from "@/pages/FinancePage";
+import { AnalyticsPage } from "@/pages/AnalyticsPage";
+import { SupportPage } from "@/pages/SupportPage";
+import { NotificationsPage } from "@/pages/NotificationsPage";
+import { useAuthStore } from "@/stores/authStore";
 
 function PublicOnly({ children }: { children: ReactNode }) {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated());

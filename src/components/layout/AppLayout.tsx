@@ -6,19 +6,21 @@ import { NotificationBell } from '@/components/notifications/NotificationBell';
 import { UserDropdown } from './UserDropdown';
 import { useBootstrapRestaurant } from '@/hooks/useBootstrapRestaurant';
 import { useRestaurantInAppNotifications } from '@/hooks/useRestaurantInAppNotifications';
+import { useNotificationBridge } from '@/hooks/useNotificationBridge';
 import { useRestaurantSocket } from '@/hooks/useRestaurantSocket';
-import { useRestaurantPush } from '@/hooks/useRestaurantPush';
 import { useCompactLayout } from '@/hooks/use-mobile';
+import { useAuthStore } from '@/stores/authStore';
 import { useRestaurantStore } from '@/stores/restaurantStore';
 import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 
 export function AppLayout() {
   const compact = useCompactLayout();
+  const userId = useAuthStore((s) => s.user?._id);
   const { isLoading, isRefetching, error, refetch } = useBootstrapRestaurant();
   const restaurant = useRestaurantStore((s) => s.restaurant);
+  useNotificationBridge();
   useRestaurantSocket(restaurant?._id);
-  useRestaurantInAppNotifications(restaurant?._id);
-  useRestaurantPush(Boolean(restaurant?._id));
+  useRestaurantInAppNotifications(restaurant?._id, userId);
 
   const blockUi = isLoading && !restaurant;
 
@@ -50,7 +52,7 @@ export function AppLayout() {
             </div>
             <div className="flex shrink-0 items-center gap-2">
               <AppReloadButton />
-              <NotificationBell enabled={Boolean(restaurant?._id)} />
+              <NotificationBell enabled={Boolean(userId)} />
               <UserDropdown compact={compact} />
             </div>
           </header>

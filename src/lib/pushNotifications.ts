@@ -7,6 +7,7 @@ import {
   unregisterDeviceToken,
   type PortalNotification,
 } from '@/services/notifications';
+import { dispatchNotificationChanged } from '@/lib/notificationCache';
 
 const PUSH_TOKEN_KEY = 'qbite.pushToken';
 
@@ -179,23 +180,47 @@ export function setupPushNotificationListeners() {
 
   void PushNotifications.addListener('pushNotificationReceived', (notification) => {
     const data = (notification.data ?? {}) as Record<string, string | undefined>;
-    const localNotification = buildNotificationFromPush({
-      title: notification.title,
-      body: notification.body,
-      data,
-    });
-    window.dispatchEvent(new CustomEvent('qbite:notifications-changed', {
-      detail: { notification: localNotification },
-    }));
+    dispatchNotificationChanged(
+      buildNotificationFromPush({
+        title: notification.title,
+        body: notification.body,
+        data,
+      }),
+    );
   }).then((s) => subs.push(s));
 
   void PushNotifications.addListener('pushNotificationActionPerformed', (action) => {
-    handlePushData((action.notification.data ?? {}) as Record<string, string | undefined>);
+    const data = (action.notification.data ?? {}) as Record<string, string | undefined>;
+    dispatchNotificationChanged(
+      buildNotificationFromPush({
+        title: action.notification.title,
+        body: action.notification.body,
+        data,
+      }),
+    );
+    window.dispatchEvent(new Event('qbite:invalidate-notifications'));
+    handlePushData(data);
   }).then((s) => subs.push(s));
 
   void LocalNotifications.addListener('localNotificationActionPerformed', (action) => {
     const orderId = action.notification.extra?.orderId as string | undefined;
+    const title = action.notification.title ?? 'QuickBite';
+    const body = action.notification.body ?? '';
+    dispatchNotificationChanged(
+      buildNotificationFromPush({
+        title,
+        body,
+        data: {
+          orderId,
+          redirectId: orderId,
+          redirectType: orderId ? 'ORDER' : undefined,
+          type: (action.notification.extra?.type as string | undefined) ?? 'new_order',
+        },
+      }),
+    );
+    window.dispatchEvent(new Event('qbite:invalidate-notifications'));
     if (orderId) window.location.assign('/orders');
+    else window.location.assign('/notifications');
   }).then((s) => subs.push(s));
 
   return () => {

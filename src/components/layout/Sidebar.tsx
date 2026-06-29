@@ -10,6 +10,7 @@ import {
   Wallet,
   BarChart3,
   LifeBuoy,
+  Bell,
 } from 'lucide-react';
 import { useRestaurantStore } from '@/stores/restaurantStore';
 import {
@@ -20,6 +21,7 @@ import {
   SidebarMenu,
   SidebarMenuItem,
   SidebarMenuButton,
+  useSidebar,
 } from '@/components/ui/sidebar';
 
 const links = [
@@ -30,6 +32,7 @@ const links = [
   { to: '/reviews', label: 'Reviews', icon: Star, end: false },
   { to: '/finance', label: 'Finance', icon: Wallet, end: false },
   { to: '/analytics', label: 'Analytics', icon: BarChart3, end: false },
+  { to: '/notifications', label: 'Notifications', icon: Bell, end: false },
   { to: '/support', label: 'Support', icon: LifeBuoy, end: false },
   { to: '/settings', label: 'Settings', icon: Settings, end: true },
 ];
@@ -37,6 +40,11 @@ const links = [
 export function SidebarComponent() {
   const location = useLocation();
   const restaurant = useRestaurantStore((s) => s.restaurant);
+  const { isMobile, setOpenMobile } = useSidebar();
+
+  const closeMobile = () => {
+    if (isMobile) setOpenMobile(false);
+  };
 
   return (
     <Sidebar collapsible="icon" className="border-r border-black/5 bg-white">
@@ -77,7 +85,7 @@ export function SidebarComponent() {
                   isActive={isActive}
                   className="h-10 transition-all duration-200 data-[active=true]:bg-brand/10 data-[active=true]:text-brand data-[active=true]:hover:bg-brand/20 data-[active=true]:hover:text-brand"
                 >
-                  <Link to={to} className="flex items-center w-full">
+                  <Link to={to} className="flex items-center w-full" onClick={closeMobile}>
                     <Icon className="size-[18px] shrink-0" />
                     <span className="font-semibold ml-3 group-data-[collapsible=icon]:hidden text-sm">{label}</span>
                   </Link>

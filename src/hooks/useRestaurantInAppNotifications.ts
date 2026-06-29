@@ -4,8 +4,11 @@ import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 
 import { alertOrderUpdate } from '@/lib/pushNotifications';
+import { dispatchNotificationChanged, resolveNotifications, writeNotificationCache } from '@/lib/notificationCache';
+import { notificationKeys } from '@/hooks/useNotificationsQuery';
 import { fetchRestaurantOrders } from '@/services/orders';
 import { fetchNotifications, type PortalNotification } from '@/services/notifications';
+import { useAuthStore } from '@/stores/authStore';
 
 function showBrowserNotification(item: PortalNotification) {
   if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
@@ -49,13 +52,18 @@ function surfaceNewNotification(item: PortalNotification) {
  * Polls in-app notifications from the API and shows native local alerts on Capacitor
  * (Web Notification API does not work inside Android WebView).
  */
-export function useRestaurantInAppNotifications(restaurantId: string | null | undefined) {
+export function useRestaurantInAppNotifications(
+  restaurantId: string | null | undefined,
+  userId?: string | null,
+) {
   const qc = useQueryClient();
+  const authUserId = useAuthStore((s) => s.user?._id);
+  const resolvedUserId = userId ?? authUserId;
   const seenRef = useRef<Set<string>>(new Set());
   const seenOrderIdsRef = useRef<Set<string>>(new Set());
   const bootstrappedRef = useRef(false);
   const ordersBootstrappedRef = useRef(false);
-  const enabled = Boolean(restaurantId);
+  const enabled = Boolean(resolvedUserId);
   const isNative = Capacitor.isNativePlatform();
   const pollMs = isNative ? 15_000 : 60_000;
 
@@ -65,13 +73,17 @@ export function useRestaurantInAppNotifications(restaurantId: string | null | un
     let alive = true;
 
     const poll = async () => {
+      if (!resolvedUserId) return;
+
       try {
-        const items = await fetchNotifications(1, 30);
+        const apiItems = await fetchNotifications(1, 30);
         if (!alive) return;
 
-        qc.setQueryData(['notifications', 'restaurant'], items);
-        void qc.invalidateQueries({ queryKey: ['notifications', 'list'] });
-        void qc.invalidateQueries({ queryKey: ['notifications', 'unread-count'] });
+        const memory =
+          qc.getQueryData<PortalNotification[]>(notificationKeys.list(resolvedUserId)) ?? [];
+        const items = resolveNotifications(resolvedUserId, apiItems, memory);
+
+        writeNotificationCache(qc, resolvedUserId, items);
 
         if (!bootstrappedRef.current) {
           items.forEach((item) => seenRef.current.add(item._id));
@@ -103,6 +115,18 @@ export function useRestaurantInAppNotifications(restaurantId: string | null | un
 
           for (const order of freshOrders) {
             seenOrderIdsRef.current.add(order._id);
+            dispatchNotificationChanged({
+              _id: `order-${order._id}-${Date.now()}`,
+              notificationType: 'ORDER',
+              title: 'New order',
+              message: order.orderNumber
+                ? `New order ${order.orderNumber} — please confirm and prepare.`
+                : 'A new order has been placed.',
+              isRead: false,
+              sentAt: new Date().toISOString(),
+              redirectType: 'ORDER',
+              redirectId: order._id,
+            });
             toast.success('New order received!', {
               description: order.orderNumber
                 ? `Order #${order.orderNumber} — check kitchen queue`
@@ -125,23 +149,6 @@ export function useRestaurantInAppNotifications(restaurantId: string | null | un
     void poll();
     const id = window.setInterval(poll, pollMs);
 
-    const onInvalidate = (event: Event) => {
-      const custom = event as CustomEvent<{ notification?: PortalNotification }>;
-      const incoming = custom.detail?.notification;
-      if (incoming) {
-        qc.setQueriesData<PortalNotification[]>(
-          { queryKey: ['notifications', 'list'] },
-          (prev = []) => {
-            if (prev.some((item) => item._id === incoming._id)) return prev;
-            return [incoming, ...prev].slice(0, 60);
-          },
-        );
-      }
-      void poll();
-    };
-    window.addEventListener('qbite:invalidate-notifications', onInvalidate);
-    window.addEventListener('qbite:notifications-changed', onInvalidate);
-
     if (!isNative && typeof Notification !== 'undefined' && Notification.permission === 'default') {
       Notification.requestPermission().catch(() => undefined);
     }
@@ -149,8 +156,6 @@ export function useRestaurantInAppNotifications(restaurantId: string | null | un
     return () => {
       alive = false;
       window.clearInterval(id);
-      window.removeEventListener('qbite:invalidate-notifications', onInvalidate);
-      window.removeEventListener('qbite:notifications-changed', onInvalidate);
     };
-  }, [enabled, isNative, pollMs, qc, restaurantId]);
+  }, [enabled, isNative, pollMs, qc, restaurantId, resolvedUserId]);
 }
