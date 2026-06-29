@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { MapPin, LocateFixed, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { GoogleRestaurantMapPicker } from '@/components/map/GoogleRestaurantMapPicker';
+import { RestaurantMapPicker } from '@/components/map/RestaurantMapPicker';
 import { reverseGeocode } from '@/services/geocode';
 import { getCurrentPosition } from '@/lib/geolocation';
 import { Button } from '@/components/ui/button';
@@ -49,7 +49,17 @@ export function RestaurantLocationPicker({
           country: resolved.country ?? 'India',
         });
       } catch (e) {
-        toast.error(e instanceof Error ? e.message : 'Could not auto-fill address');
+        onAddressChange({
+          street: `Location (${newLat.toFixed(5)}, ${newLng.toFixed(5)})`,
+          city: address.city ?? '',
+          state: address.state ?? '',
+          pincode: address.pincode ?? '',
+          country: address.country ?? 'India',
+        });
+        const msg = e instanceof Error ? e.message : 'Could not auto-fill address';
+        if (!msg.toLowerCase().includes('reverse geocoding')) {
+          toast.error(msg);
+        }
       } finally {
         setGeocoding(false);
       }
@@ -66,6 +76,13 @@ export function RestaurantLocationPicker({
       if (runGeocode) void fillAddressFromCoords(newLat, newLng);
     },
     [onLatitudeChange, onLongitudeChange, fillAddressFromCoords],
+  );
+
+  const handleMapPick = useCallback(
+    (newLat: number, newLng: number) => {
+      applyCoords(newLat, newLng, true);
+    },
+    [applyCoords],
   );
 
   useEffect(() => {
@@ -105,10 +122,10 @@ export function RestaurantLocationPicker({
   return (
     <div className="space-y-4">
       <div className="relative">
-        <GoogleRestaurantMapPicker
+        <RestaurantMapPicker
           latitude={lat}
           longitude={lng}
-          onPick={(newLat, newLng) => applyCoords(newLat, newLng, true)}
+          onPick={handleMapPick}
         />
         {geocoding && (
           <div className="absolute inset-0 z-30 flex items-center justify-center bg-white/60 backdrop-blur-[1px] rounded-xl">

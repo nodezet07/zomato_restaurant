@@ -736,12 +736,16 @@ export function MenuPage() {
                           }))
                         }
                       >
-                        <SelectTrigger className="h-9 text-xs w-full"><SelectValue /></SelectTrigger>
-                        <SelectContent position="popper">
-                          <SelectItem value="none">None</SelectItem>
-                          <SelectItem value="low">Low</SelectItem>
-                          <SelectItem value="medium">Medium</SelectItem>
-                          <SelectItem value="high">High</SelectItem>
+                        <SelectTrigger className="h-9 text-xs w-full rounded-xl border-black/10"><SelectValue /></SelectTrigger>
+                        <SelectContent
+                          position="popper"
+                          sideOffset={6}
+                          className="z-[250] bg-white border border-black/10 rounded-xl shadow-lg p-1"
+                        >
+                          <SelectItem value="none" className="text-xs font-semibold rounded-lg">None</SelectItem>
+                          <SelectItem value="low" className="text-xs font-semibold rounded-lg">Low</SelectItem>
+                          <SelectItem value="medium" className="text-xs font-semibold rounded-lg">Medium</SelectItem>
+                          <SelectItem value="high" className="text-xs font-semibold rounded-lg">High</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -915,12 +919,16 @@ export function MenuPage() {
                           }))
                         }
                       >
-                        <SelectTrigger className="h-9 text-xs w-full"><SelectValue /></SelectTrigger>
-                        <SelectContent position="popper">
-                          <SelectItem value="none">None</SelectItem>
-                          <SelectItem value="low">Low</SelectItem>
-                          <SelectItem value="medium">Medium</SelectItem>
-                          <SelectItem value="high">High</SelectItem>
+                        <SelectTrigger className="h-9 text-xs w-full rounded-xl border-black/10"><SelectValue /></SelectTrigger>
+                        <SelectContent
+                          position="popper"
+                          sideOffset={6}
+                          className="z-[250] bg-white border border-black/10 rounded-xl shadow-lg p-1"
+                        >
+                          <SelectItem value="none" className="text-xs font-semibold rounded-lg">None</SelectItem>
+                          <SelectItem value="low" className="text-xs font-semibold rounded-lg">Low</SelectItem>
+                          <SelectItem value="medium" className="text-xs font-semibold rounded-lg">Medium</SelectItem>
+                          <SelectItem value="high" className="text-xs font-semibold rounded-lg">High</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>

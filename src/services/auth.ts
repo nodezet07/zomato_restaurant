@@ -13,14 +13,12 @@ export async function sendRestaurantEmailOtp(email: string) {
   loginLog('info', 'Sending restaurant email OTP', { email });
   try {
     const body = await apiFetch<
-      ApiResponse<{ email?: string; purpose?: string; devOtp?: string }>
+      ApiResponse<{ email?: string; purpose?: string }>
     >('/auth/restaurant/send-email-otp', {
       method: 'POST',
       body: JSON.stringify({ email }),
     });
-    loginLog('success', 'OTP send response received', {
-      hasDevOtp: Boolean(body.data?.devOtp),
-    });
+    loginLog('success', 'OTP send response received');
     return body.data;
   } catch (err) {
     loginLog('error', 'OTP send failed', err instanceof Error ? err.message : err);
@@ -45,7 +43,7 @@ export async function verifyRestaurantEmailOtp(email: string, otp: string) {
 
 export async function sendRestaurantOtp(mobile: string) {
   const body = await apiFetch<
-    ApiResponse<{ email?: string; purpose?: string; devOtp?: string }>
+    ApiResponse<{ email?: string; purpose?: string }>
   >('/auth/restaurant/send-otp', {
     method: 'POST',
     body: JSON.stringify({ mobile }),

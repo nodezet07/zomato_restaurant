@@ -98,20 +98,20 @@ export function AnalyticsPage() {
   return (
     <PageShell eyebrow="Insights" title="Analytics" subtitle={data?.restaurantName}>
       <div className="space-y-6">
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
           {cards.map((c) => {
             const Icon = c.icon;
             return (
               <Card key={c.label} className="border-black/5 shadow-sm">
-                <CardContent className="p-4">
-                  <div className="flex justify-between items-start">
-                    <p className="text-[10px] font-black uppercase text-muted tracking-wider">{c.label}</p>
-                    <div className={`p-2 rounded-xl ${c.color}`}>
-                      <Icon className="size-4" />
+                <CardContent className="p-3 sm:p-4">
+                  <div className="flex justify-between items-start gap-1">
+                    <p className="text-[9px] sm:text-[10px] font-black uppercase text-muted tracking-wider leading-tight">{c.label}</p>
+                    <div className={`p-1.5 sm:p-2 rounded-xl shrink-0 ${c.color}`}>
+                      <Icon className="size-3.5 sm:size-4" />
                     </div>
                   </div>
-                  <p className="text-2xl font-black text-ink mt-2">{c.value}</p>
-                  <p className="text-[10px] text-muted font-medium mt-1">{c.sub}</p>
+                  <p className="text-lg sm:text-2xl font-black text-ink mt-1.5 sm:mt-2">{c.value}</p>
+                  <p className="text-[9px] sm:text-[10px] text-muted font-medium mt-0.5 sm:mt-1 line-clamp-2">{c.sub}</p>
                 </CardContent>
               </Card>
             );

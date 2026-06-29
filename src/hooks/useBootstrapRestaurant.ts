@@ -5,7 +5,8 @@ import { useRestaurantStore } from '@/stores/restaurantStore';
 
 export function useBootstrapRestaurant() {
   const userId = useAuthStore((s) => s.user?._id);
-  const { restaurant, setRestaurant } = useRestaurantStore();
+  const cachedRestaurant = useRestaurantStore((s) => s.restaurant);
+  const { setRestaurant } = useRestaurantStore();
 
   const q = useQuery({
     queryKey: ['owner-restaurant', userId],
@@ -16,12 +17,17 @@ export function useBootstrapRestaurant() {
     },
     enabled: Boolean(userId),
     retry: 1,
-    staleTime: 0,
+    staleTime: 30_000,
+    placeholderData: cachedRestaurant ?? undefined,
   });
 
+  const restaurant = q.data ?? cachedRestaurant ?? null;
+
   return {
-    restaurant: q.data ?? restaurant ?? null,
-    isLoading: q.isLoading,
+    restaurant,
+    isLoading: q.isLoading && !restaurant,
+    isRefetching: q.isFetching && Boolean(restaurant),
     error: q.error,
+    refetch: q.refetch,
   };
 }

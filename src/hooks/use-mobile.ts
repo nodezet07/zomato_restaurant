@@ -11,6 +11,8 @@ function isNativeApp(): boolean {
   }
 }
 
+export { isNativeApp };
+
 function computeCompactLayout(): boolean {
   if (isNativeApp()) return true;
   if (typeof window === 'undefined') return false;

@@ -1,6 +1,7 @@
 import { Outlet } from 'react-router-dom';
 import { SidebarComponent } from './Sidebar';
 import { BottomNav } from './BottomNav';
+import { AppReloadButton } from './AppReloadButton';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
 import { UserDropdown } from './UserDropdown';
 import { useBootstrapRestaurant } from '@/hooks/useBootstrapRestaurant';
@@ -13,11 +14,13 @@ import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 
 export function AppLayout() {
   const compact = useCompactLayout();
-  const { isLoading, error } = useBootstrapRestaurant();
+  const { isLoading, isRefetching, error, refetch } = useBootstrapRestaurant();
   const restaurant = useRestaurantStore((s) => s.restaurant);
   useRestaurantSocket(restaurant?._id);
-  useRestaurantInAppNotifications(Boolean(restaurant?._id));
+  useRestaurantInAppNotifications(restaurant?._id);
   useRestaurantPush(Boolean(restaurant?._id));
+
+  const blockUi = isLoading && !restaurant;
 
   return (
     <SidebarProvider defaultOpen={!compact}>
@@ -46,23 +49,40 @@ export function AppLayout() {
               </div>
             </div>
             <div className="flex shrink-0 items-center gap-2">
+              <AppReloadButton />
               <NotificationBell enabled={Boolean(restaurant?._id)} />
               <UserDropdown compact={compact} />
             </div>
           </header>
 
           <main className="min-w-0 flex-1 overflow-x-hidden overflow-y-auto bg-surface">
-            {isLoading && (
+            {blockUi && (
               <div className="flex h-40 items-center justify-center text-sm font-medium text-muted animate-pulse">
                 Loading restaurant…
               </div>
             )}
-            {error && !isLoading && (
-              <div className="m-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 md:m-6">
-                {(error as Error).message}
+            {error && !blockUi && !restaurant && (
+              <div className="m-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 md:m-6 space-y-2">
+                <p>{(error as Error).message}</p>
+                <button
+                  type="button"
+                  className="text-xs font-bold underline"
+                  onClick={() => void refetch()}
+                >
+                  Retry
+                </button>
               </div>
             )}
-            {!isLoading && <Outlet />}
+            {!blockUi && (
+              <>
+                {isRefetching && (
+                  <div className="px-4 py-1 text-[10px] font-semibold text-muted md:px-6">
+                    Syncing restaurant…
+                  </div>
+                )}
+                <Outlet />
+              </>
+            )}
           </main>
 
           {compact && <BottomNav />}

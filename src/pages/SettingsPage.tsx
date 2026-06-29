@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useMutation } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import {
@@ -45,6 +46,15 @@ const SETTINGS_TABS = [
   { id: 'alerts', label: 'Order alerts', icon: Bell },
 ] as const;
 
+type SettingsTabId = (typeof SETTINGS_TABS)[number]['id'];
+
+const VALID_TAB_IDS = new Set<string>(SETTINGS_TABS.map((t) => t.id));
+
+function parseSettingsTab(value: string | null): SettingsTabId {
+  if (value && VALID_TAB_IDS.has(value)) return value as SettingsTabId;
+  return 'availability';
+}
+
 
 function defaultWeeklyHours(existing?: WeeklyHour[]): WeeklyHour[] {
   const map = new Map((existing ?? []).map((h) => [h.day, h]));
@@ -71,6 +81,8 @@ function readImageFile(file: File): Promise<string> {
 
 export function SettingsPage() {
   const isMobile = useIsMobile();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeTab = parseSettingsTab(searchParams.get('tab'));
   const restaurant = useRestaurantStore((s) => s.restaurant);
   const setRestaurant = useRestaurantStore((s) => s.setRestaurant);
 
@@ -273,12 +285,27 @@ export function SettingsPage() {
     e.target.value = '';
   }
 
-  if (!restaurant) return null;
+  function onTabChange(next: string) {
+    if (next === 'availability') {
+      setSearchParams({}, { replace: true });
+    } else {
+      setSearchParams({ tab: next }, { replace: true });
+    }
+  }
+
+  if (!restaurant) {
+    return (
+      <PageShell eyebrow="Settings" title="Restaurant settings">
+        <p className="text-sm text-muted">Loading settings…</p>
+      </PageShell>
+    );
+  }
 
   return (
     <PageShell eyebrow="Settings" title="Restaurant settings">
       <Tabs
-        defaultValue="availability"
+        value={activeTab}
+        onValueChange={onTabChange}
         orientation={isMobile ? 'horizontal' : 'vertical'}
         className="flex flex-col md:flex-row gap-8 items-start w-full max-w-6xl space-y-0"
       >
@@ -298,8 +325,7 @@ export function SettingsPage() {
           ))}
         </TabsList>
 
-        <div className="flex-1 w-full max-w-2xl mt-0 space-y-6">
-          <TabsContent value="availability">
+        <TabsContent value="availability" className="flex-1 w-full max-w-2xl mt-0">
           <Card className="border-black/5 shadow-sm">
             <CardHeader>
               <CardTitle>Store availability</CardTitle>
@@ -329,7 +355,7 @@ export function SettingsPage() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="hours" className="space-y-4">
+        <TabsContent value="hours" className="flex-1 w-full max-w-2xl mt-0 space-y-4">
           <Card className="border-black/5 shadow-sm">
             <CardHeader>
               <CardTitle>Default hours</CardTitle>
@@ -363,7 +389,7 @@ export function SettingsPage() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="profile">
+        <TabsContent value="profile" className="flex-1 w-full max-w-2xl mt-0">
           <Card className="border-black/5 shadow-sm">
             <CardHeader><CardTitle>Restaurant profile</CardTitle></CardHeader>
             <CardContent className="space-y-4">
@@ -379,7 +405,7 @@ export function SettingsPage() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="business">
+        <TabsContent value="business" className="flex-1 w-full max-w-2xl mt-0">
           <Card className="border-black/5 shadow-sm">
             <CardHeader>
               <CardTitle>Order rules</CardTitle>
@@ -399,7 +425,7 @@ export function SettingsPage() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="branding">
+        <TabsContent value="branding" className="flex-1 w-full max-w-2xl mt-0">
           <Card className="border-black/5 shadow-sm">
             <CardHeader>
               <CardTitle>Logo & banners</CardTitle>
@@ -440,21 +466,23 @@ export function SettingsPage() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="location">
+        <TabsContent value="location" className="flex-1 w-full max-w-2xl mt-0 min-h-[320px]">
           <Card className="border-black/5 shadow-sm">
             <CardHeader>
               <CardTitle>Store location</CardTitle>
               <CardDescription>Pin on map for nearby search & delivery radius center</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <RestaurantLocationPicker
-                latitude={latitude}
-                longitude={longitude}
-                address={address}
-                onLatitudeChange={setLatitude}
-                onLongitudeChange={setLongitude}
-                onAddressChange={(patch) => setAddress((a) => ({ ...a, ...patch }))}
-              />
+              {activeTab === 'location' ? (
+                <RestaurantLocationPicker
+                  latitude={latitude}
+                  longitude={longitude}
+                  address={address}
+                  onLatitudeChange={setLatitude}
+                  onLongitudeChange={setLongitude}
+                  onAddressChange={(patch) => setAddress((a) => ({ ...a, ...patch }))}
+                />
+              ) : null}
               <Button onClick={() => saveLocation.mutate()} disabled={saveLocation.isPending}>
                 Save location
               </Button>
@@ -462,7 +490,7 @@ export function SettingsPage() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="delivery">
+        <TabsContent value="delivery" className="flex-1 w-full max-w-2xl mt-0">
           <Card className="border-black/5 shadow-sm">
             <CardHeader>
               <CardTitle>Delivery settings</CardTitle>
@@ -482,7 +510,7 @@ export function SettingsPage() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="payments">
+        <TabsContent value="payments" className="flex-1 w-full max-w-2xl mt-0">
           <Card className="border-black/5 shadow-sm">
             <CardHeader><CardTitle>Payments & compliance</CardTitle></CardHeader>
             <CardContent className="space-y-4">
@@ -496,7 +524,7 @@ export function SettingsPage() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="bank">
+        <TabsContent value="bank" className="flex-1 w-full max-w-2xl mt-0">
           <Card className="border-black/5 shadow-sm">
             <CardHeader><CardTitle>Bank account</CardTitle><CardDescription>For settlement payouts</CardDescription></CardHeader>
             <CardContent className="space-y-4">
@@ -508,7 +536,7 @@ export function SettingsPage() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="alerts">
+        <TabsContent value="alerts" className="flex-1 w-full max-w-2xl mt-0">
           <Card className="border-black/5 shadow-sm">
             <CardHeader>
               <CardTitle className="flex items-center gap-2"><Bell className="size-4" /> Order alerts</CardTitle>
@@ -523,7 +551,6 @@ export function SettingsPage() {
             </CardContent>
           </Card>
         </TabsContent>
-        </div>
       </Tabs>
     </PageShell>
   );

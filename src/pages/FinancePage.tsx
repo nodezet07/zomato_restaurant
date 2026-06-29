@@ -70,38 +70,38 @@ export function FinancePage() {
             </div>
           ) : (
             <>
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3">
                 <Card className="border-black/5 shadow-sm">
-                  <CardHeader className="pb-2">
-                    <CardDescription className="flex items-center gap-1.5">
-                      <Wallet className="size-3.5" /> Pending settlement
+                  <CardHeader className="pb-2 p-3 sm:p-6">
+                    <CardDescription className="flex items-center gap-1.5 text-[10px] sm:text-xs leading-tight">
+                      <Wallet className="size-3.5 shrink-0" /> Pending settlement
                     </CardDescription>
-                    <CardTitle className="text-2xl font-black">{money(e?.pendingSettlement?.netPayable)}</CardTitle>
+                    <CardTitle className="text-lg sm:text-2xl font-black">{money(e?.pendingSettlement?.netPayable)}</CardTitle>
                   </CardHeader>
-                  <CardContent className="text-xs text-muted font-medium">
+                  <CardContent className="text-[10px] sm:text-xs text-muted font-medium px-3 pb-3 sm:px-6 sm:pb-6">
                     {e?.pendingSettlement?.orderCount ?? 0} delivered orders · Gross{' '}
                     {money(e?.pendingSettlement?.grossFoodSales)}
                   </CardContent>
                 </Card>
                 <Card className="border-black/5 shadow-sm">
-                  <CardHeader className="pb-2">
-                    <CardDescription className="flex items-center gap-1.5">
-                      <ArrowDownToLine className="size-3.5" /> Awaiting transfer
+                  <CardHeader className="pb-2 p-3 sm:p-6">
+                    <CardDescription className="flex items-center gap-1.5 text-[10px] sm:text-xs leading-tight">
+                      <ArrowDownToLine className="size-3.5 shrink-0" /> Awaiting transfer
                     </CardDescription>
-                    <CardTitle className="text-2xl font-black">{money(e?.awaitingBankTransfer?.netPayable)}</CardTitle>
+                    <CardTitle className="text-lg sm:text-2xl font-black">{money(e?.awaitingBankTransfer?.netPayable)}</CardTitle>
                   </CardHeader>
-                  <CardContent className="text-xs text-muted font-medium">
+                  <CardContent className="text-[10px] sm:text-xs text-muted font-medium px-3 pb-3 sm:px-6 sm:pb-6">
                     {e?.awaitingBankTransfer?.orderCount ?? 0} orders settled, payment pending
                   </CardContent>
                 </Card>
-                <Card className="border-black/5 shadow-sm">
-                  <CardHeader className="pb-2">
-                    <CardDescription className="flex items-center gap-1.5">
-                      <IndianRupee className="size-3.5" /> Total paid out
+                <Card className="border-black/5 shadow-sm col-span-2 lg:col-span-1">
+                  <CardHeader className="pb-2 p-3 sm:p-6">
+                    <CardDescription className="flex items-center gap-1.5 text-[10px] sm:text-xs leading-tight">
+                      <IndianRupee className="size-3.5 shrink-0" /> Total paid out
                     </CardDescription>
-                    <CardTitle className="text-2xl font-black">{money(e?.totalPaidOut?.netPayable)}</CardTitle>
+                    <CardTitle className="text-lg sm:text-2xl font-black">{money(e?.totalPaidOut?.netPayable)}</CardTitle>
                   </CardHeader>
-                  <CardContent className="text-xs text-muted font-medium">
+                  <CardContent className="text-[10px] sm:text-xs text-muted font-medium px-3 pb-3 sm:px-6 sm:pb-6">
                     {e?.totalPaidOut?.orderCount ?? 0} orders · Commission rate{' '}
                     {e?.commissionRate ?? '—'}%
                   </CardContent>
@@ -136,7 +136,7 @@ export function FinancePage() {
           ) : (
             <>
               {compact ? (
-                <div className="grid gap-3 sm:grid-cols-2">
+                <div className="grid grid-cols-2 gap-3">
                   {settlements.map((s) => (
                     <Card key={s._id} className="border-black/5 shadow-sm">
                       <CardContent className="p-4 space-y-2">

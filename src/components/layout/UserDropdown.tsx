@@ -10,7 +10,10 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { User, LogOut } from 'lucide-react';
+import { User, LogOut, RefreshCw } from 'lucide-react';
+import { isNativeApp } from '@/hooks/use-mobile';
+import { reloadApp } from '@/lib/appReload';
+import { unregisterForPushNotifications } from '@/lib/pushNotifications';
 
 export function UserDropdown({ compact = false }: { compact?: boolean }) {
   const navigate = useNavigate();
@@ -21,6 +24,7 @@ export function UserDropdown({ compact = false }: { compact?: boolean }) {
 
   const handleLogout = async () => {
     try {
+      await unregisterForPushNotifications();
       await logoutApi(refreshToken);
     } catch {
       // ignore
@@ -68,6 +72,17 @@ export function UserDropdown({ compact = false }: { compact?: boolean }) {
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator className="bg-black/5" />
+        {isNativeApp() && (
+          <DropdownMenuItem
+            onClick={() => reloadApp()}
+            className="focus:bg-brand/5 focus:text-brand rounded-lg cursor-pointer transition-colors px-3 py-2.5"
+          >
+            <div className="flex items-center w-full">
+              <RefreshCw className="size-4 mr-3" />
+              <span className="font-semibold text-sm">Reload app</span>
+            </div>
+          </DropdownMenuItem>
+        )}
         <DropdownMenuItem 
           onClick={handleLogout}
           className="focus:bg-red-50 focus:text-red-600 text-red-500 rounded-lg cursor-pointer transition-colors px-3 py-2.5"

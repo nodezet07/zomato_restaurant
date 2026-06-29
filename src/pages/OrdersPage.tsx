@@ -17,6 +17,7 @@ import { PageShell } from '@/components/layout/PageShell';
 import { OrderDetailDialog } from '@/components/orders/OrderDetailDialog';
 import { AcceptOrderDialog } from '@/components/orders/AcceptOrderDialog';
 import { NEXT_STATUS, OrderStatusActions, confirmCancelOrder } from '@/components/orders/OrderStatusActions';
+import { isAwaitingOnlinePayment } from '@/lib/orderPayment';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -288,7 +289,7 @@ export function OrdersPage() {
                     Print KOT
                   </DropdownMenuItem>
 
-                  {isPending ? (
+                  {isPending && !isAwaitingOnlinePayment(order) ? (
                     <DropdownMenuItem
                       disabled={busy}
                       onClick={() => setAcceptOrderTarget(order)}

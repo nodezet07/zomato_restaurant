@@ -1,6 +1,7 @@
 import { Eye, Printer, UtensilsCrossed, XCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
+import { isAwaitingOnlinePayment, paymentStatusLabel } from '@/lib/orderPayment';
 import { printKitchenTicket } from '@/lib/printKitchenTicket';
 import type { Order, Restaurant } from '@/types/api';
 
@@ -51,13 +52,29 @@ export function OrderStatusActions({
   showView = false,
 }: Props) {
   const isPending = order.orderStatus === 'PENDING';
+  const awaitingPayment = isAwaitingOnlinePayment(order);
   const next = NEXT_STATUS[order.orderStatus];
   const canCancel = !['DELIVERED', 'CANCELLED'].includes(order.orderStatus);
   const stack = variant === 'stack';
 
   return (
     <div className={stack ? 'flex flex-col gap-2' : 'flex flex-wrap items-center gap-2'}>
-      {isPending && (
+      {isPending && awaitingPayment && (
+        <div
+          className={`rounded-xl border px-3 py-2.5 text-xs leading-relaxed ${
+            order.paymentStatus === 'FAILED'
+              ? 'border-rose-200 bg-rose-50 text-rose-800'
+              : 'border-amber-200 bg-amber-50 text-amber-900'
+          }`}
+        >
+          <span className="font-bold">{paymentStatusLabel(order)}.</span>{' '}
+          {order.paymentStatus === 'FAILED'
+            ? 'Customer must retry payment before you can accept this order.'
+            : 'Waiting for customer to complete online payment before you can accept.'}
+        </div>
+      )}
+
+      {isPending && !awaitingPayment && (
         <Button
           disabled={busy}
           onClick={onAcceptClick}

@@ -28,6 +28,7 @@ import {
 } from '@/components/ui/select';
 import { AcceptOrderDialog } from '@/components/orders/AcceptOrderDialog';
 import { OrderStatusActions } from '@/components/orders/OrderStatusActions';
+import { isAwaitingOnlinePayment, paymentStatusLabel } from '@/lib/orderPayment';
 import { useRestaurantStore } from '@/stores/restaurantStore';
 import type { Order } from '@/types/api';
 
@@ -225,6 +226,20 @@ function OrderDetailBody({
         </Badge>
         <Badge variant="outline" className="border-black/5 bg-slate-50 text-slate-700 font-bold text-[9px] rounded-md px-2 py-0.5 uppercase tracking-wider">
           {order.paymentMethod}
+        </Badge>
+        <Badge
+          variant="outline"
+          className={`border font-bold text-[9px] rounded-md px-2 py-0.5 uppercase tracking-wider ${
+            order.paymentStatus === 'FAILED'
+              ? 'border-rose-200 bg-rose-50 text-rose-700'
+              : isAwaitingOnlinePayment(order)
+                ? 'border-amber-200 bg-amber-50 text-amber-800'
+                : order.paymentStatus === 'CAPTURED'
+                  ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                  : 'border-black/5 bg-slate-50 text-slate-700'
+          }`}
+        >
+          {paymentStatusLabel(order)}
         </Badge>
       </div>
 

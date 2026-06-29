@@ -3,7 +3,7 @@ let authFailed = false;
 let runtime: GoogleMapsRuntime | null = null;
 
 type MapsNamespace = {
-  importLibrary(libraryName: 'maps'): Promise<google.maps.MapsLibrary>;
+  importLibrary(libraryName: 'maps' | 'marker'): Promise<unknown>;
   SymbolPath: typeof google.maps.SymbolPath;
 };
 
@@ -48,10 +48,23 @@ async function importMapsRuntime(): Promise<GoogleMapsRuntime> {
     throw new Error('Google Maps bootstrap did not load');
   }
 
-  const maps = await mapsNs.importLibrary('maps');
+  const maps = (await mapsNs.importLibrary('maps')) as google.maps.MapsLibrary;
+  let MarkerCtor = maps.Marker as typeof google.maps.Marker | undefined;
+  if (!MarkerCtor) {
+    try {
+      const markerLib = (await mapsNs.importLibrary('marker')) as { Marker?: typeof google.maps.Marker };
+      MarkerCtor = markerLib.Marker;
+    } catch {
+      /* Marker may still be on maps namespace in older loaders */
+    }
+  }
+  if (!MarkerCtor) {
+    throw new Error('Google Maps Marker library is unavailable');
+  }
+
   runtime = {
     Map: maps.Map,
-    Marker: maps.Marker,
+    Marker: MarkerCtor,
     Polyline: maps.Polyline,
     LatLngBounds: maps.LatLngBounds,
     SymbolPath: mapsNs.SymbolPath,
