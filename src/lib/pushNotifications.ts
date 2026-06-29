@@ -1,30 +1,91 @@
 import { Capacitor } from '@capacitor/core';
 import { LocalNotifications } from '@capacitor/local-notifications';
+import { PushNotifications } from '@capacitor/push-notifications';
 
-/** Expo-style order alerts — local notifications on native, browser Notification on web. */
+import {
+  registerDeviceToken,
+  unregisterDeviceToken,
+  type PortalNotification,
+} from '@/services/notifications';
+
+const PUSH_TOKEN_KEY = 'qbite.pushToken';
+
+let pushListenersAttached = false;
+let removePushListeners: (() => void) | undefined;
+
+export function ensurePushListeners(): void {
+  if (!Capacitor.isNativePlatform() || pushListenersAttached) return;
+  pushListenersAttached = true;
+  removePushListeners = setupPushNotificationListeners();
+}
+
+export function teardownPushListeners(): void {
+  removePushListeners?.();
+  removePushListeners = undefined;
+  pushListenersAttached = false;
+}
+
+async function setupLocalChannels() {
+  await LocalNotifications.createChannel({
+    id: 'orders',
+    name: 'Order alerts',
+    description: 'New orders and delivery updates',
+    importance: 5,
+    vibration: true,
+    sound: 'default',
+  });
+  await LocalNotifications.createChannel({
+    id: 'default',
+    name: 'General',
+    importance: 3,
+  });
+}
+
+function storePushToken(token: string) {
+  try {
+    sessionStorage.setItem(PUSH_TOKEN_KEY, token);
+  } catch {
+    /* ignore */
+  }
+}
+
+function getStoredPushToken(): string | null {
+  try {
+    return sessionStorage.getItem(PUSH_TOKEN_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function clearStoredPushToken() {
+  try {
+    sessionStorage.removeItem(PUSH_TOKEN_KEY);
+  } catch {
+    /* ignore */
+  }
+}
+
+/** Register FCM (native) or browser notifications — same backend flow as MyApp/Rider Expo push. */
 export async function registerForPushNotifications(): Promise<boolean> {
   if (Capacitor.isNativePlatform()) {
     try {
-      const perm = await LocalNotifications.requestPermissions();
-      if (perm.display !== 'granted') return false;
+      ensurePushListeners();
+      await setupLocalChannels();
 
-      await LocalNotifications.createChannel({
-        id: 'orders',
-        name: 'Order alerts',
-        description: 'New orders and delivery updates',
-        importance: 5,
-        vibration: true,
-        sound: 'default',
-      });
+      const localPerm = await LocalNotifications.requestPermissions();
 
-      await LocalNotifications.createChannel({
-        id: 'default',
-        name: 'General',
-        importance: 3,
-      });
+      let perm = await PushNotifications.checkPermissions();
+      if (perm.receive === 'prompt') {
+        perm = await PushNotifications.requestPermissions();
+      }
 
-      return true;
-    } catch {
+      if (perm.receive === 'granted') {
+        await PushNotifications.register();
+      }
+
+      return perm.receive === 'granted' || localPerm.display === 'granted';
+    } catch (error) {
+      console.warn('[Push] native registration failed', error);
       return false;
     }
   }
@@ -34,15 +95,115 @@ export async function registerForPushNotifications(): Promise<boolean> {
   return perm === 'granted';
 }
 
+export async function unregisterForPushNotifications(): Promise<void> {
+  const token = getStoredPushToken();
+  if (token) {
+    try {
+      await unregisterDeviceToken(token);
+    } catch {
+      /* ignore */
+    }
+    clearStoredPushToken();
+  }
+  if (Capacitor.isNativePlatform()) {
+    try {
+      await PushNotifications.unregister();
+    } catch {
+      /* ignore */
+    }
+  }
+}
+
 export async function isPushEnabled(): Promise<boolean> {
   if (Capacitor.isNativePlatform()) {
-    const perm = await LocalNotifications.checkPermissions();
-    return perm.display === 'granted';
+    const [pushPerm, localPerm] = await Promise.all([
+      PushNotifications.checkPermissions(),
+      LocalNotifications.checkPermissions(),
+    ]);
+    return pushPerm.receive === 'granted' || localPerm.display === 'granted';
   }
   return typeof Notification !== 'undefined' && Notification.permission === 'granted';
 }
 
-/** Show order alert — mirrors MyApp/RiderApp expo-notifications scheduleNotificationAsync pattern. */
+function handlePushData(data: Record<string, string | undefined>) {
+  const orderId = data.orderId ?? data.redirectId;
+  if (orderId) {
+    window.location.assign('/orders');
+    return;
+  }
+  window.location.assign('/notifications');
+}
+
+function buildNotificationFromPush(input: {
+  title?: string;
+  body?: string;
+  data?: Record<string, string | undefined>;
+}): PortalNotification {
+  const redirectType = input.data?.redirectType;
+  const redirectId = input.data?.redirectId ?? input.data?.orderId;
+  const notificationType = input.data?.type ?? 'ORDER';
+  return {
+    _id: `push-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    notificationType,
+    title: input.title ?? 'QuickBite',
+    message: input.body ?? '',
+    isRead: false,
+    sentAt: new Date().toISOString(),
+    redirectType,
+    redirectId,
+  };
+}
+
+/** Call once after login — registers FCM token with backend (like MyApp Expo push). */
+export function setupPushNotificationListeners() {
+  if (!Capacitor.isNativePlatform()) return () => undefined;
+
+  const subs: Array<{ remove: () => void }> = [];
+
+  void PushNotifications.addListener('registration', async (token) => {
+    try {
+      storePushToken(token.value);
+      await registerDeviceToken(
+        token.value,
+        Capacitor.getPlatform() === 'ios' ? 'ios' : 'android',
+      );
+      console.log('[Push] FCM token registered with backend');
+    } catch (error) {
+      console.warn('[Push] failed to save FCM token', error);
+    }
+  }).then((s) => subs.push(s));
+
+  void PushNotifications.addListener('registrationError', (error) => {
+    console.warn('[Push] FCM registration error', error);
+  }).then((s) => subs.push(s));
+
+  void PushNotifications.addListener('pushNotificationReceived', (notification) => {
+    const data = (notification.data ?? {}) as Record<string, string | undefined>;
+    const localNotification = buildNotificationFromPush({
+      title: notification.title,
+      body: notification.body,
+      data,
+    });
+    window.dispatchEvent(new CustomEvent('qbite:notifications-changed', {
+      detail: { notification: localNotification },
+    }));
+  }).then((s) => subs.push(s));
+
+  void PushNotifications.addListener('pushNotificationActionPerformed', (action) => {
+    handlePushData((action.notification.data ?? {}) as Record<string, string | undefined>);
+  }).then((s) => subs.push(s));
+
+  void LocalNotifications.addListener('localNotificationActionPerformed', (action) => {
+    const orderId = action.notification.extra?.orderId as string | undefined;
+    if (orderId) window.location.assign('/orders');
+  }).then((s) => subs.push(s));
+
+  return () => {
+    subs.forEach((s) => s.remove());
+  };
+}
+
+/** Foreground/socket alert — local notification when app is open. */
 export async function alertOrderUpdate(input: {
   title: string;
   body: string;
@@ -53,9 +214,13 @@ export async function alertOrderUpdate(input: {
 
   if (Capacitor.isNativePlatform()) {
     try {
-      const perm = await LocalNotifications.checkPermissions();
+      let perm = await LocalNotifications.checkPermissions();
+      if (perm.display !== 'granted') {
+        perm = await LocalNotifications.requestPermissions();
+      }
       if (perm.display !== 'granted') return;
 
+      await setupLocalChannels();
       await LocalNotifications.schedule({
         notifications: [
           {

@@ -1,4 +1,4 @@
-package com.qbite.restaurant;
+package com.company.fooddelivery;
 
 import android.os.Bundle;
 import android.webkit.WebSettings;

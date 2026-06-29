@@ -42,3 +42,10 @@ export async function registerDeviceToken(token: string, platform: 'android' | '
     body: JSON.stringify({ token, platform }),
   });
 }
+
+export async function unregisterDeviceToken(token: string) {
+  return apiFetch('/notifications/device-token', {
+    method: 'DELETE',
+    body: JSON.stringify({ token }),
+  });
+}

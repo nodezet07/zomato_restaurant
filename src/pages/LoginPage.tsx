@@ -5,9 +5,13 @@ import { useMutation } from '@tanstack/react-query';
 import { Award, Loader2, Mail, ShieldCheck } from 'lucide-react';
 import { sendRestaurantEmailOtp, verifyRestaurantEmailOtp } from '@/services/auth';
 import {
+  BACKEND_URLS,
+  discoverProductionBackend,
   discoverWorkingNativeHost,
+  enableLocalBackendOverride,
   getEnvInfo,
 } from '@/config/env';
+import { registerForPushNotifications } from '@/lib/pushNotifications';
 import {
   loginLog,
 } from '@/lib/loginLogger';
@@ -38,13 +42,54 @@ export function LoginPage() {
   const [otp, setOtp] = useState<string[]>(Array(6).fill(''));
   const [errorMsg, setErrorMsg] = useState('');
   const [resendTimer, setResendTimer] = useState(0);
-  const [envInfo] = useState(getEnvInfo());
+  const [envInfo, setEnvInfo] = useState(getEnvInfo());
+  const [backendStatus, setBackendStatus] = useState<'checking' | 'ok' | 'fail'>('checking');
 
   const otpInputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
   useEffect(() => {
     loginLog('info', 'Login page mounted', envInfo);
   }, []);
+
+  useEffect(() => {
+    if (!envInfo.isNative) {
+      setBackendStatus('ok');
+      return;
+    }
+
+    let alive = true;
+
+    if (envInfo.useProductionBackend || envInfo.apiUrl.startsWith('https://')) {
+      void discoverProductionBackend().then((ok) => {
+        if (!alive) return;
+        if (ok) {
+          setBackendStatus('ok');
+          loginLog('success', 'Production backend reachable', { api: getEnvInfo().apiUrl });
+        } else {
+          setBackendStatus('fail');
+          loginLog('error', 'Production backend not reachable', { api: getEnvInfo().apiUrl });
+        }
+      });
+      return () => {
+        alive = false;
+      };
+    }
+
+    void discoverWorkingNativeHost().then((host) => {
+      if (!alive) return;
+      if (host) {
+        setBackendStatus('ok');
+        setEnvInfo(getEnvInfo());
+        loginLog('success', 'Backend reachable', { host, api: getEnvInfo().apiUrl });
+      } else {
+        setBackendStatus('fail');
+        loginLog('error', 'Backend not reachable', { tried: getEnvInfo().hostCandidates });
+      }
+    });
+    return () => {
+      alive = false;
+    };
+  }, [envInfo.isNative, envInfo.useProductionBackend, envInfo.apiUrl]);
 
   useEffect(() => {
     if (resendTimer <= 0) return;
@@ -60,18 +105,34 @@ export function LoginPage() {
     assertRestaurantOwner(data.user);
     clearRestaurant();
     setAuth(data.user, data.accessToken, data.refreshToken);
+    void registerForPushNotifications();
     navigate('/', { replace: true });
   };
 
   const sendOtp = useMutation({
     mutationFn: async () => {
       const latestEnv = getEnvInfo();
-      if (latestEnv.isNative) {
+      if (latestEnv.isNative && latestEnv.useProductionBackend) {
+        const renderOk = await discoverProductionBackend();
+        if (!renderOk) {
+          const host = await discoverWorkingNativeHost();
+          if (!host) {
+            throw new Error(
+              `Cannot reach ${BACKEND_URLS.production.base}. Wait ~30s if the server was sleeping, or enable local backend and ensure phone + PC are on same Wi‑Fi.`,
+            );
+          }
+          enableLocalBackendOverride();
+          setEnvInfo(getEnvInfo());
+          setBackendStatus('ok');
+          loginLog('warn', 'Falling back to local backend', { host, api: getEnvInfo().apiUrl });
+        }
+      } else if (latestEnv.isNative && !latestEnv.apiUrl.startsWith('https://')) {
         loginLog('info', 'Discovering backend before OTP…');
         const host = await discoverWorkingNativeHost();
         if (!host) {
+          const lan = import.meta.env.VITE_LAN_HOST ?? '192.168.1.101';
           throw new Error(
-            'Cannot reach backend. Ensure clone-backend is running and your phone is on same Wi-Fi.',
+            `Cannot reach backend at ${lan}:5000. Start clone-backend (npm run dev), use same Wi‑Fi, and set VITE_LAN_HOST=${lan} in .env then rebuild APK.`,
           );
         }
       }
@@ -179,6 +240,24 @@ export function LoginPage() {
         </div>
       </div>
 
+      {envInfo.isNative && backendStatus !== 'ok' && (
+        <div
+          className={`rounded-xl border px-4 py-2.5 text-center text-[12px] font-medium leading-relaxed ${
+            backendStatus === 'checking'
+              ? 'border-amber-200 bg-amber-50 text-amber-800'
+              : 'border-red-200 bg-red-50 text-red-600'
+          }`}
+        >
+          {backendStatus === 'checking'
+            ? envInfo.useProductionBackend
+              ? `Connecting to ${BACKEND_URLS.production.base}…`
+              : `Checking backend at ${import.meta.env.VITE_LAN_HOST ?? '192.168.1.101'}:5000…`
+            : envInfo.useProductionBackend
+              ? `Cannot reach ${BACKEND_URLS.production.base}. Check internet — Render may take ~30s to wake up.`
+              : `Cannot reach backend. Start clone-backend (npm run dev), use same Wi‑Fi, then rebuild APK.`}
+        </div>
+      )}
+
       {errorMsg && (
         <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-center text-[12.5px] font-semibold text-red-600">
           {errorMsg}
@@ -222,21 +301,34 @@ export function LoginPage() {
       )}
 
       {step === 'otp' && (
-        <form onSubmit={handleOtpSubmit} className="flex flex-col gap-4">
+        <form
+          onSubmit={handleOtpSubmit}
+          className="flex flex-col gap-4"
+          onPaste={(e) => {
+            const pasted = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6);
+            if (!pasted) return;
+            e.preventDefault();
+            const next = Array(6).fill('');
+            for (let i = 0; i < pasted.length; i++) next[i] = pasted[i];
+            setOtp(next);
+            otpInputRefs.current[Math.min(pasted.length, 5)]?.focus();
+          }}
+        >
           <div className="flex justify-center gap-1.5 sm:gap-2">
             {otp.map((digit, i) => (
               <input
                 key={i}
                 type="text"
                 inputMode="numeric"
-                maxLength={6}
+                maxLength={1}
+                autoComplete={i === 0 ? 'one-time-code' : 'off'}
                 ref={(el) => {
                   otpInputRefs.current[i] = el;
                 }}
                 value={digit}
                 onChange={(e) => handleOtpChange(e.target.value, i)}
                 onKeyDown={(e) => handleKeyDown(e, i)}
-                autoFocus={i === 0}
+                onFocus={(e) => e.currentTarget.select()}
                 className={[
                   'h-[50px] w-[42px] rounded-xl border-[1.5px] bg-white text-center text-xl font-bold text-slate-800 outline-none transition-all sm:h-[52px] sm:w-[46px] sm:text-[22px]',
                   digit

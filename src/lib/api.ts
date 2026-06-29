@@ -51,11 +51,13 @@ export async function apiFetch<T = unknown>(
   try {
     res = await fetch(url, { ...init, headers });
   } catch (err) {
-    loginLog('error', `Network error on ${path}`, {
-      url,
-      message: err instanceof Error ? err.message : String(err),
-    });
-    throw err;
+    const raw = err instanceof Error ? err.message : String(err);
+    loginLog('error', `Network error on ${path}`, { url, message: raw });
+    const friendly =
+      raw === 'Failed to fetch' || raw.includes('NetworkError')
+        ? `Cannot reach API at ${getApiUrl()}. Check internet connection or wait if the server was sleeping.`
+        : raw;
+    throw new Error(friendly);
   }
 
   if (res.status !== 401) {

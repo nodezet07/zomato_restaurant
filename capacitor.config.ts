@@ -1,11 +1,11 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const LIVE_RELOAD = process.env.CAPACITOR_LIVE_RELOAD === 'true';
-const LAN_HOST = process.env.CAPACITOR_SERVER_HOST ?? '192.168.1.100';
+const LAN_HOST = process.env.CAPACITOR_SERVER_HOST ?? '192.168.1.101';
 const DEV_PORT = process.env.CAPACITOR_SERVER_PORT ?? '5174';
 
 const config: CapacitorConfig = {
-  appId: 'com.qbite.restaurant',
+  appId: 'com.company.fooddelivery',
   appName: 'QBITE Restaurant Portal',
   webDir: 'dist',
   server: LIVE_RELOAD
