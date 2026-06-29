@@ -1,4 +1,4 @@
-import { getApiUrl } from '@/config/env';
+import { discoverWorkingNativeHost, enableLocalBackendOverride, getApiUrl } from '@/config/env';
 import { useAuthStore } from '@/stores/authStore';
 import { loginLog } from '@/lib/loginLogger';
 
@@ -53,11 +53,24 @@ export async function apiFetch<T = unknown>(
   } catch (err) {
     const raw = err instanceof Error ? err.message : String(err);
     loginLog('error', `Network error on ${path}`, { url, message: raw });
-    const friendly =
-      raw === 'Failed to fetch' || raw.includes('NetworkError')
-        ? `Cannot reach API at ${getApiUrl()}. Check internet connection or wait if the server was sleeping.`
-        : raw;
-    throw new Error(friendly);
+    if (raw === 'Failed to fetch' || raw.includes('NetworkError')) {
+      try {
+        const host = await discoverWorkingNativeHost(true);
+        if (host) {
+          enableLocalBackendOverride();
+          const localUrl = path.startsWith('http') ? path : `${getApiUrl()}${path}`;
+          loginLog('warn', 'Retrying API on local backend', { host, localUrl });
+          res = await fetch(localUrl, { ...init, headers });
+        } else {
+          throw err;
+        }
+      } catch {
+        const friendly = `Cannot reach API at ${getApiUrl()}. Check internet connection or wait if the server was sleeping.`;
+        throw new Error(friendly);
+      }
+    } else {
+      throw err;
+    }
   }
 
   if (res.status !== 401) {
