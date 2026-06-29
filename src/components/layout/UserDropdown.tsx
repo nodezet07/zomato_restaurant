@@ -13,6 +13,7 @@ import {
 import { User, LogOut, RefreshCw } from 'lucide-react';
 import { isNativeApp } from '@/hooks/use-mobile';
 import { reloadApp } from '@/lib/appReload';
+import { unregisterForPushNotifications } from '@/lib/pushNotifications';
 
 export function UserDropdown({ compact = false }: { compact?: boolean }) {
   const navigate = useNavigate();
@@ -23,6 +24,7 @@ export function UserDropdown({ compact = false }: { compact?: boolean }) {
 
   const handleLogout = async () => {
     try {
+      await unregisterForPushNotifications();
       await logoutApi(refreshToken);
     } catch {
       // ignore

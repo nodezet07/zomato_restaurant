@@ -2,6 +2,6 @@
 <resources>
     <string name="app_name">QBITE Restaurant Portal</string>
     <string name="title_activity_main">QBITE Restaurant Portal</string>
-    <string name="package_name">com.qbite.restaurant</string>
-    <string name="custom_url_scheme">com.qbite.restaurant</string>
+    <string name="package_name">com.company.fooddelivery</string>
+    <string name="custom_url_scheme">com.company.fooddelivery</string>
 </resources>

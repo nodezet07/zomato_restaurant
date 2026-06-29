@@ -1,28 +1,31 @@
 import { useEffect } from 'react';
 import { Capacitor } from '@capacitor/core';
-import { LocalNotifications } from '@capacitor/local-notifications';
+
 import {
   alertOrderUpdate,
+  ensurePushListeners,
   isPushEnabled,
   registerForPushNotifications,
 } from '@/lib/pushNotifications';
 
-/** Setup push-style alerts (local notifications on Android/iOS, browser on web). */
+/** FCM remote push + local foreground alerts (MyApp-style). */
 export function useRestaurantPush(enabled: boolean) {
   useEffect(() => {
     if (!enabled) return;
 
+    if (Capacitor.isNativePlatform()) {
+      ensurePushListeners();
+    }
+
     void registerForPushNotifications();
 
-    if (!Capacitor.isNativePlatform()) return;
-
-    const sub = LocalNotifications.addListener('localNotificationActionPerformed', (action) => {
-      const orderId = action.notification.extra?.orderId as string | undefined;
-      if (orderId) window.location.assign('/orders');
-    });
+    const onNotificationsChanged = () => {
+      window.dispatchEvent(new Event('qbite:invalidate-notifications'));
+    };
+    window.addEventListener('qbite:notifications-changed', onNotificationsChanged);
 
     return () => {
-      void sub.then((s) => s.remove());
+      window.removeEventListener('qbite:notifications-changed', onNotificationsChanged);
     };
   }, [enabled]);
 }

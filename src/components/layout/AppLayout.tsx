@@ -17,7 +17,7 @@ export function AppLayout() {
   const { isLoading, isRefetching, error, refetch } = useBootstrapRestaurant();
   const restaurant = useRestaurantStore((s) => s.restaurant);
   useRestaurantSocket(restaurant?._id);
-  useRestaurantInAppNotifications(Boolean(restaurant?._id));
+  useRestaurantInAppNotifications(restaurant?._id);
   useRestaurantPush(Boolean(restaurant?._id));
 
   const blockUi = isLoading && !restaurant;
