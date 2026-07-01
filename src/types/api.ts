@@ -100,6 +100,8 @@ export type Order = {
     | string;
   createdAt?: string;
   deliveryInstructions?: string;
+  dontSendCutlery?: boolean;
+  generalNote?: string;
   estimatedPreparationTime?: number;
   estimatedDeliveryTime?: string;
   deliveryAddress?: {

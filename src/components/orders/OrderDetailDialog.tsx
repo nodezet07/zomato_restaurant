@@ -343,6 +343,26 @@ function OrderDetailBody({
         </ul>
       </div>
 
+      {(order.dontSendCutlery || order.generalNote) && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50/40 p-3.5 space-y-2">
+          <p className="text-[10px] font-black uppercase tracking-widest text-amber-800">Preparation Preferences</p>
+          {order.dontSendCutlery && (
+            <div className="flex items-center gap-2 text-xs text-amber-900 font-semibold">
+              <span className="bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded text-[10px]">ECO</span>
+              Don't send cutlery (Customer opted out of plastic cutlery)
+            </div>
+          )}
+          {order.generalNote && (
+            <div className="text-xs text-slate-700">
+              <p className="font-bold text-ink">Kitchen instructions / Note:</p>
+              <p className="mt-1 bg-white border border-black/5 p-2 rounded-lg italic text-slate-600">
+                "{order.generalNote}"
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+
       <div className="flex justify-between border-t border-black/5 pt-4 font-black text-ink">
         <span>Grand total</span>
         <span>₹{order.grandTotal}</span>

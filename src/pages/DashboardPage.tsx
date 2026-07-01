@@ -1,5 +1,5 @@
 import { useMemo, useState, type ReactNode } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import {
   Loader2,
@@ -25,9 +25,11 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 
-import { getRestaurantAnalytics } from '@/services/restaurants';
+import { getRestaurantAnalytics, updateRestaurantOpenStatus } from '@/services/restaurants';
 import { fetchRestaurantOrders } from '@/services/orders';
 import { fetchMenuItems } from '@/services/menu';
+import { Switch } from '@/components/ui/switch';
+import { toast } from 'sonner';
 import { useRestaurantStore } from '@/stores/restaurantStore';
 import { useCompactLayout } from '@/hooks/use-mobile';
 import { PageShell } from '@/components/layout/PageShell';
@@ -143,8 +145,18 @@ function SectionCard({
 export function DashboardPage() {
   const compact = useCompactLayout();
   const restaurant = useRestaurantStore((s) => s.restaurant);
+  const setRestaurant = useRestaurantStore((s) => s.setRestaurant);
   const restaurantId = restaurant?._id ?? '';
   const [trackOrderId, setTrackOrderId] = useState<string | null>(null);
+
+  const toggleStatus = useMutation({
+    mutationFn: (isOpen: boolean) => updateRestaurantOpenStatus(restaurantId, isOpen),
+    onSuccess: (updated) => {
+      if (updated) setRestaurant(updated);
+      toast.success(updated.isOpen ? 'Restaurant is now online (open)' : 'Restaurant is now offline (closed)');
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
 
   const analyticsQ = useQuery({
     queryKey: ['analytics', restaurantId],
@@ -266,17 +278,25 @@ export function DashboardPage() {
             enabled={Boolean(restaurantId)}
             onOrderSelect={(id) => setTrackOrderId(id)}
           />
-          <span
-            className={cn(
-              "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[10px] font-extrabold uppercase tracking-widest",
-              restaurant?.isOpen
-                ? 'bg-emerald-500/10 text-emerald-700 border border-emerald-500/20'
-                : 'bg-rose-500/10 text-rose-700 border border-rose-500/20'
-            )}
-          >
-            <span className={cn("size-1.5 rounded-full", restaurant?.isOpen ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500')} />
-            {restaurant?.isOpen ? 'Accepting orders' : 'Closed'}
-          </span>
+          <div className="flex items-center gap-2.5 rounded-xl border border-black/5 bg-white px-3 py-1.5 shadow-xs">
+            <span
+              className={cn(
+                "inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[9px] font-extrabold uppercase tracking-widest",
+                restaurant?.isOpen
+                  ? 'bg-emerald-500/10 text-emerald-700'
+                  : 'bg-rose-500/10 text-rose-700'
+              )}
+            >
+              <span className={cn("size-1.5 rounded-full", restaurant?.isOpen ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500')} />
+              {restaurant?.isOpen ? 'Online' : 'Offline'}
+            </span>
+            <Switch
+              id="dashboard-open-toggle"
+              checked={restaurant?.isOpen ?? false}
+              disabled={toggleStatus.isPending || !restaurant}
+              onCheckedChange={(checked) => toggleStatus.mutate(checked)}
+            />
+          </div>
           <Button asChild size="sm" variant="outline" className="rounded-xl text-xs font-bold shadow-xs">
             <Link to="/analytics">
               <BarChart3 className="mr-1.5 size-3.5" />

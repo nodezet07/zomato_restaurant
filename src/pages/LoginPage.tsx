@@ -1,29 +1,30 @@
-import { useEffect, useRef, useState } from 'react';
-import type { FormEvent } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useMutation } from '@tanstack/react-query';
-import { Award, Loader2, Mail, ShieldCheck } from 'lucide-react';
-import { sendRestaurantEmailOtp, verifyRestaurantEmailOtp } from '@/services/auth';
+import { useEffect, useRef, useState } from "react";
+import type { FormEvent } from "react";
+import { useNavigate } from "react-router-dom";
+import { useMutation } from "@tanstack/react-query";
+import { Award, Loader2, Mail, ShieldCheck } from "lucide-react";
+import {
+  sendRestaurantEmailOtp,
+  verifyRestaurantEmailOtp,
+} from "@/services/auth";
 import {
   BACKEND_URLS,
   discoverProductionBackend,
   discoverWorkingNativeHost,
   enableLocalBackendOverride,
   getEnvInfo,
-} from '@/config/env';
-import { registerForPushNotifications } from '@/lib/pushNotifications';
-import {
-  loginLog,
-} from '@/lib/loginLogger';
-import { useAuthStore } from '@/stores/authStore';
-import { useRestaurantStore } from '@/stores/restaurantStore';
-import type { AuthUser } from '@/types/api';
+} from "@/config/env";
+import { registerForPushNotifications } from "@/lib/pushNotifications";
+import { loginLog } from "@/lib/loginLogger";
+import { useAuthStore } from "@/stores/authStore";
+import { useRestaurantStore } from "@/stores/restaurantStore";
+import type { AuthUser } from "@/types/api";
 
-type Step = 'email' | 'otp';
+type Step = "email" | "otp";
 
 function assertRestaurantOwner(user: AuthUser) {
-  if (user.role !== 'restaurant_owner') {
-    throw new Error('This portal is for restaurant partners only.');
+  if (user.role !== "restaurant_owner") {
+    throw new Error("This portal is for restaurant partners only.");
   }
 }
 
@@ -34,40 +35,46 @@ export function LoginPage() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated());
 
   useEffect(() => {
-    if (isAuthenticated) navigate('/', { replace: true });
+    if (isAuthenticated) navigate("/", { replace: true });
   }, [isAuthenticated, navigate]);
 
-  const [step, setStep] = useState<Step>('email');
-  const [email, setEmail] = useState('');
-  const [otpCode, setOtpCode] = useState('');
-  const [errorMsg, setErrorMsg] = useState('');
+  const [step, setStep] = useState<Step>("email");
+  const [email, setEmail] = useState("");
+  const [otpCode, setOtpCode] = useState("");
+  const [errorMsg, setErrorMsg] = useState("");
   const [resendTimer, setResendTimer] = useState(0);
   const [envInfo, setEnvInfo] = useState(getEnvInfo());
-  const [backendStatus, setBackendStatus] = useState<'checking' | 'ok' | 'fail'>('checking');
+  const [backendStatus, setBackendStatus] = useState<
+    "checking" | "ok" | "fail"
+  >("checking");
 
   const otpInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
-    loginLog('info', 'Login page mounted', envInfo);
+    loginLog("info", "Login page mounted", envInfo);
   }, []);
 
   useEffect(() => {
     if (!envInfo.isNative) {
-      setBackendStatus('ok');
+      setBackendStatus("ok");
       return;
     }
 
     let alive = true;
 
-    if (envInfo.useProductionBackend || envInfo.apiUrl.startsWith('https://')) {
+    if (envInfo.useProductionBackend || envInfo.apiUrl.startsWith("https://")) {
       void discoverProductionBackend().then((ok) => {
         if (!alive) return;
         if (ok) {
-          setBackendStatus('ok');
-          loginLog('success', 'Production backend reachable', { api: getEnvInfo().apiUrl });
+          setBackendStatus("ok");
+          loginLog("success", "Production backend reachable", {
+            api: getEnvInfo().apiUrl,
+          });
         } else {
-          setBackendStatus('fail');
-          loginLog('error', 'Production backend not reachable', { api: getEnvInfo().apiUrl });
+          setBackendStatus("fail");
+          loginLog("error", "Production backend not reachable", {
+            api: getEnvInfo().apiUrl,
+          });
         }
       });
       return () => {
@@ -78,12 +85,17 @@ export function LoginPage() {
     void discoverWorkingNativeHost().then((host) => {
       if (!alive) return;
       if (host) {
-        setBackendStatus('ok');
+        setBackendStatus("ok");
         setEnvInfo(getEnvInfo());
-        loginLog('success', 'Backend reachable', { host, api: getEnvInfo().apiUrl });
+        loginLog("success", "Backend reachable", {
+          host,
+          api: getEnvInfo().apiUrl,
+        });
       } else {
-        setBackendStatus('fail');
-        loginLog('error', 'Backend not reachable', { tried: getEnvInfo().hostCandidates });
+        setBackendStatus("fail");
+        loginLog("error", "Backend not reachable", {
+          tried: getEnvInfo().hostCandidates,
+        });
       }
     });
     return () => {
@@ -97,8 +109,12 @@ export function LoginPage() {
     return () => clearTimeout(t);
   }, [resendTimer]);
 
-  const finishAuth = (data: { user: AuthUser; accessToken: string; refreshToken: string }) => {
-    loginLog('success', 'Login complete — redirecting', {
+  const finishAuth = (data: {
+    user: AuthUser;
+    accessToken: string;
+    refreshToken: string;
+  }) => {
+    loginLog("success", "Login complete — redirecting", {
       email: data.user.email,
       role: data.user.role,
     });
@@ -106,7 +122,7 @@ export function LoginPage() {
     clearRestaurant();
     setAuth(data.user, data.accessToken, data.refreshToken);
     void registerForPushNotifications();
-    navigate('/', { replace: true });
+    navigate("/", { replace: true });
   };
 
   const sendOtp = useMutation({
@@ -123,46 +139,53 @@ export function LoginPage() {
           }
           enableLocalBackendOverride();
           setEnvInfo(getEnvInfo());
-          setBackendStatus('ok');
-          loginLog('warn', 'Falling back to local backend', { host, api: getEnvInfo().apiUrl });
+          setBackendStatus("ok");
+          loginLog("warn", "Falling back to local backend", {
+            host,
+            api: getEnvInfo().apiUrl,
+          });
         }
-      } else if (latestEnv.isNative && !latestEnv.apiUrl.startsWith('https://')) {
-        loginLog('info', 'Discovering backend before OTP…');
+      } else if (
+        latestEnv.isNative &&
+        !latestEnv.apiUrl.startsWith("https://")
+      ) {
+        loginLog("info", "Discovering backend before OTP…");
         const host = await discoverWorkingNativeHost();
         if (!host) {
-          const lan = import.meta.env.VITE_LAN_HOST ?? '192.168.1.101';
+          const lan = import.meta.env.VITE_LAN_HOST ?? "192.168.1.101";
           throw new Error(
             `Cannot reach backend at ${lan}:5000. Start clone-backend (npm run dev), use same Wi‑Fi, and set VITE_LAN_HOST=${lan} in .env then rebuild APK.`,
           );
         }
       }
-      loginLog('info', 'Sending restaurant email OTP', {
+      loginLog("info", "Sending restaurant email OTP", {
         email: email.trim().toLowerCase(),
         api: latestEnv.apiUrl,
       });
       return sendRestaurantEmailOtp(email.trim().toLowerCase());
     },
     onSuccess: () => {
-      loginLog('success', 'Send OTP UI success');
-      setStep('otp');
+      loginLog("success", "Send OTP UI success");
+      setStep("otp");
       setResendTimer(60);
-      setErrorMsg('');
-      setOtpCode('');
+      setErrorMsg("");
+      setOtpCode("");
       setTimeout(() => otpInputRef.current?.focus(), 120);
     },
     onError: (err: Error) => {
-      loginLog('error', 'Send OTP UI error', err.message);
-      setErrorMsg(err.message || 'Failed to send OTP');
+      loginLog("error", "Send OTP UI error", err.message);
+      setErrorMsg(err.message || "Failed to send OTP");
     },
   });
 
   const verifyOtp = useMutation({
-    mutationFn: () => verifyRestaurantEmailOtp(email.trim().toLowerCase(), otpCode),
+    mutationFn: () =>
+      verifyRestaurantEmailOtp(email.trim().toLowerCase(), otpCode),
     onSuccess: finishAuth,
     onError: (err: Error) => {
-      loginLog('error', 'Verify OTP UI error', err.message);
+      loginLog("error", "Verify OTP UI error", err.message);
       setErrorMsg(err.message);
-      setOtpCode('');
+      setOtpCode("");
       setTimeout(() => otpInputRef.current?.focus(), 80);
     },
   });
@@ -171,21 +194,23 @@ export function LoginPage() {
 
   const handleEmailSubmit = (e: FormEvent) => {
     e.preventDefault();
-    setErrorMsg('');
-    if (!email.trim().includes('@')) {
-      loginLog('warn', 'Invalid email format', { email });
-      setErrorMsg('Please enter a valid Gmail / email address');
+    setErrorMsg("");
+    if (!email.trim().includes("@")) {
+      loginLog("warn", "Invalid email format", { email });
+      setErrorMsg("Please enter a valid Gmail / email address");
       return;
     }
-    loginLog('info', 'Send OTP form submitted', { email: email.trim().toLowerCase() });
+    loginLog("info", "Send OTP form submitted", {
+      email: email.trim().toLowerCase(),
+    });
     sendOtp.mutate();
   };
 
   const handleOtpSubmit = (e: FormEvent) => {
     e.preventDefault();
-    setErrorMsg('');
+    setErrorMsg("");
     if (otpCode.length !== 6) {
-      setErrorMsg('Please enter the 6-digit OTP');
+      setErrorMsg("Please enter the 6-digit OTP");
       return;
     }
     verifyOtp.mutate();
@@ -193,8 +218,8 @@ export function LoginPage() {
 
   const handleResend = () => {
     if (resendTimer > 0) return;
-    setErrorMsg('');
-    setOtpCode('');
+    setErrorMsg("");
+    setOtpCode("");
     sendOtp.mutate();
   };
 
@@ -206,28 +231,28 @@ export function LoginPage() {
         </div>
         <div>
           <h1 className="text-[22px] font-extrabold tracking-tight text-slate-800">
-            {step === 'email' ? 'Login with Gmail' : 'Verify OTP'}
+            {step === "email" ? "Login with Gmail" : "Verify OTP"}
           </h1>
           <p className="mt-1 text-[13px] leading-relaxed text-slate-500">
-            {step === 'email'
+            {step === "email"
               ? "We'll send a 6-digit OTP to your restaurant partner email."
               : `Enter the code sent to ${email}`}
           </p>
         </div>
       </div>
 
-      {envInfo.isNative && backendStatus !== 'ok' && (
+      {envInfo.isNative && backendStatus !== "ok" && (
         <div
           className={`rounded-xl border px-4 py-2.5 text-center text-[12px] font-medium leading-relaxed ${
-            backendStatus === 'checking'
-              ? 'border-amber-200 bg-amber-50 text-amber-800'
-              : 'border-red-200 bg-red-50 text-red-600'
+            backendStatus === "checking"
+              ? "border-amber-200 bg-amber-50 text-amber-800"
+              : "border-red-200 bg-red-50 text-red-600"
           }`}
         >
-          {backendStatus === 'checking'
+          {backendStatus === "checking"
             ? envInfo.useProductionBackend
               ? `Connecting to ${BACKEND_URLS.production.base}…`
-              : `Checking backend at ${import.meta.env.VITE_LAN_HOST ?? '192.168.1.101'}:5000…`
+              : `Checking backend at ${import.meta.env.VITE_LAN_HOST ?? "192.168.1.101"}:5000…`
             : envInfo.useProductionBackend
               ? `Cannot reach ${BACKEND_URLS.production.base}. Check internet — Render may take ~30s to wake up.`
               : `Cannot reach backend. Start clone-backend (npm run dev), use same Wi‑Fi, then rebuild APK.`}
@@ -240,7 +265,7 @@ export function LoginPage() {
         </div>
       )}
 
-      {step === 'email' && (
+      {step === "email" && (
         <form onSubmit={handleEmailSubmit} className="flex flex-col gap-4">
           <div>
             <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-widest text-slate-400">
@@ -270,17 +295,14 @@ export function LoginPage() {
                 <Loader2 className="size-4 animate-spin" /> Sending to Gmail…
               </>
             ) : (
-              'Send OTP →'
+              "Send OTP →"
             )}
           </button>
         </form>
       )}
 
-      {step === 'otp' && (
-        <form
-          onSubmit={handleOtpSubmit}
-          className="flex flex-col gap-4"
-        >
+      {step === "otp" && (
+        <form onSubmit={handleOtpSubmit} className="flex flex-col gap-4">
           <div>
             <label className="mb-1.5 block text-center text-[11px] font-bold uppercase tracking-widest text-slate-400">
               6-digit OTP
@@ -292,9 +314,14 @@ export function LoginPage() {
               autoComplete="one-time-code"
               maxLength={6}
               value={otpCode}
-              onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+              onChange={(e) =>
+                setOtpCode(e.target.value.replace(/\D/g, "").slice(0, 6))
+              }
               onPaste={(e) => {
-                const pasted = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6);
+                const pasted = e.clipboardData
+                  .getData("text")
+                  .replace(/\D/g, "")
+                  .slice(0, 6);
                 if (!pasted) return;
                 e.preventDefault();
                 setOtpCode(pasted);
@@ -305,14 +332,16 @@ export function LoginPage() {
           </div>
 
           <div className="flex flex-wrap items-center justify-center gap-1.5 text-center text-[12.5px]">
-            <span className="text-slate-400">Didn&apos;t receive the code?</span>
+            <span className="text-slate-400">
+              Didn&apos;t receive the code?
+            </span>
             <button
               type="button"
               onClick={handleResend}
               disabled={resendTimer > 0}
-              className={`font-bold transition-colors ${resendTimer > 0 ? 'cursor-not-allowed text-slate-400' : 'text-brand hover:text-brand-dark'}`}
+              className={`font-bold transition-colors ${resendTimer > 0 ? "cursor-not-allowed text-slate-400" : "text-brand hover:text-brand-dark"}`}
             >
-              {resendTimer > 0 ? `Resend in ${resendTimer}s` : 'Resend Now'}
+              {resendTimer > 0 ? `Resend in ${resendTimer}s` : "Resend Now"}
             </button>
           </div>
 
@@ -326,16 +355,16 @@ export function LoginPage() {
                 <Loader2 className="size-4 animate-spin" /> Verifying…
               </>
             ) : (
-              'Verify & Continue'
+              "Verify & Continue"
             )}
           </button>
 
           <button
             type="button"
             onClick={() => {
-              setStep('email');
-              setOtpCode('');
-              setErrorMsg('');
+              setStep("email");
+              setOtpCode("");
+              setErrorMsg("");
             }}
             className="text-center text-[12.5px] text-slate-400 underline underline-offset-2 transition-colors hover:text-brand"
           >
@@ -360,7 +389,9 @@ export function LoginPage() {
       {/* Mobile hero */}
       <div
         className="relative max-h-[38vh] min-h-[200px] shrink-0 overflow-hidden md:hidden"
-        style={{ background: 'linear-gradient(145deg, #ff5a00 0%, #d44a00 100%)' }}
+        style={{
+          background: "linear-gradient(145deg, #ff5a00 0%, #d44a00 100%)",
+        }}
       >
         <div className="flex h-full flex-col items-center justify-center px-6 py-8 text-center text-white">
           <div className="mb-3 flex h-16 w-16 items-center justify-center rounded-2xl bg-white/95 shadow-xl">
@@ -376,14 +407,17 @@ export function LoginPage() {
       {/* Desktop left */}
       <div
         className="relative hidden h-full w-1/2 shrink-0 flex-col items-center justify-center overflow-hidden md:flex"
-        style={{ background: 'linear-gradient(145deg, #1a1c1c 0%, #2d2410 40%, #1a1008 100%)' }}
+        style={{
+          background:
+            "linear-gradient(145deg, #1a1c1c 0%, #2d2410 40%, #1a1008 100%)",
+        }}
       >
         <div
           className="pointer-events-none absolute inset-0 opacity-[0.06]"
           style={{
             backgroundImage:
-              'linear-gradient(#ff5a00 1px, transparent 1px), linear-gradient(90deg, #ff5a00 1px, transparent 1px)',
-            backgroundSize: '40px 40px',
+              "linear-gradient(#ff5a00 1px, transparent 1px), linear-gradient(90deg, #ff5a00 1px, transparent 1px)",
+            backgroundSize: "40px 40px",
           }}
         />
         <div className="relative z-10 flex max-w-sm flex-col items-center gap-6 px-8 text-center">
@@ -392,7 +426,9 @@ export function LoginPage() {
           </div>
           <div>
             <h2 className="text-4xl font-black text-white">QuickBite</h2>
-            <p className="mt-2 text-sm text-white/60">Gmail OTP login for restaurant partners</p>
+            <p className="mt-2 text-sm text-white/60">
+              Gmail OTP login for restaurant partners
+            </p>
           </div>
         </div>
       </div>
@@ -404,7 +440,7 @@ export function LoginPage() {
         </div>
         <div
           className="flex flex-1 items-start justify-center overflow-y-auto overscroll-contain px-4 pt-4"
-          style={{ paddingBottom: 'max(24px, env(safe-area-inset-bottom))' }}
+          style={{ paddingBottom: "max(24px, env(safe-area-inset-bottom))" }}
         >
           {FormBody}
         </div>
